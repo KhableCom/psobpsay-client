@@ -36,7 +36,7 @@ ADS_BASE_URL=https://s.khable.com      # the serving host, no path
 ADS_API_KEY=pk_...                     # issued once in the console; server side only
 ADS_ZONE_FEED=zn_...
 ADS_ZONE_SIDEBAR=zn_...
-ADS_COUNTRY_HEADER=CF-IPCountry        # or empty when not behind an edge
+ADS_COUNTRY_HEADER=CF-IPCountry        # or empty when not behind an edge; edge placeholders such as T1 or XX are dropped
 ```
 
 ## Ask for the placements on a page
