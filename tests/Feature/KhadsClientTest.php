@@ -69,6 +69,23 @@ test('slotsFor resolves placements by name and reads the country from the edge h
         && $r['slots'] === [['id' => 'feed', 'zone' => 'zn_feed']]);
 });
 
+test('an edge placeholder for the country is dropped rather than failing the page', function (?string $header, ?string $sent) {
+    khadsConfigured();
+    Http::fake();
+
+    // The ad server refuses anything that is not two letters, which the client would
+    // read as an outage: one Tor visitor must not blank ads for everyone after.
+    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: $header === null ? [] : ['HTTP_CF_IPCOUNTRY' => $header]), PAGE, 'feed');
+
+    Http::assertSent(fn (Request $r): bool => ($r->data()['country'] ?? null) === $sent);
+})->with([
+    'Tor' => ['T1', null],
+    'unknown' => ['XX', null],
+    'lower case' => ['kh', 'KH'],
+    'padded' => [' KH ', 'KH'],
+    'missing' => [null, null],
+]);
+
 test('the country header is the site\'s to choose', function () {
     khadsConfigured();
     config()->set('khads.country_header', 'X-Country');

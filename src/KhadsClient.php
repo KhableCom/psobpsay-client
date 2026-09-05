@@ -44,7 +44,19 @@ class KhadsClient
 
         $header = (string) config('khads.country_header', 'CF-IPCountry');
 
-        return $this->slots($page, $zones, $header === '' ? null : $request->header($header));
+        return $this->slots($page, $zones, $header === '' ? null : self::country($request->header($header)));
+    }
+
+    /**
+     * Only a real ISO-3166 code is worth sending. Edges also emit placeholders — `T1`
+     * for Tor, `XX` for unknown — and the ad server refuses anything but two letters,
+     * which would fail the whole page and open the circuit for every visitor after.
+     */
+    private static function country(?string $value): ?string
+    {
+        $value = strtoupper(trim((string) $value));
+
+        return preg_match('/\A[A-Z]{2}\z/', $value) === 1 && $value !== 'XX' ? $value : null;
     }
 
     /**
