@@ -1,0 +1,53 @@
+{
+    "name": "khable/khads-client",
+    "description": "Server-to-server client for the khads ad network: one batched serve call per page, fail-empty, with a Blade card and a React stub.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "khads",
+        "ads"
+    ],
+    "require": {
+        "php": "^8.3",
+        "guzzlehttp/guzzle": "^7.8",
+        "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "illuminate/view": "^12.0|^13.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.27",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Khable\\KhadsClient\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Khable\\KhadsClient\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Khable\\KhadsClient\\KhadsClientServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "lint": "vendor/bin/pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
