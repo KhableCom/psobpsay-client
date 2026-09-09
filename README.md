@@ -1,6 +1,6 @@
 # khable/khads-client
 
-Server-to-server client for the [khads](../khads) ad network, for Laravel sites
+Server-to-server client for the khads ad network, for Laravel sites
 that are publishers there. One batched call per page view, fail-empty, with a
 circuit breaker, a strict field whitelist, and a card for Blade or React.
 
@@ -12,7 +12,7 @@ development, troubleshooting — lives in khads:
 
 ```json
 // composer.json of the site
-"repositories": [{ "type": "vcs", "url": "git@github.com:khable/khads-client.git" }]
+"repositories": [{ "type": "vcs", "url": "https://github.com/KhableCom/khads-client" }]
 ```
 
 ```bash
