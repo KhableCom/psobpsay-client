@@ -1,0 +1,9 @@
+# Keep the development scaffolding out of what publishers install. Composer takes
+# the GitHub zipball, so anything not export-ignored lands in every site's vendor
+# directory. The stubs and views are shipped on purpose: they are published.
+/.gitattributes export-ignore
+/.gitignore     export-ignore
+/.github        export-ignore
+/phpunit.xml    export-ignore
+/pint.json      export-ignore
+/tests          export-ignore
