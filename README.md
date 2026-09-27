@@ -82,6 +82,31 @@ Creative images load from the serving host, so it belongs in `img-src`
 (`https:` already covers it if you allow that). Click and impression URLs are
 plain links and an image beacon; no script is loaded from the ad server.
 
+## Roadmap
+
+Planned, not yet built; the design lives in khads at
+`docs/ads-network/production-readiness-plan.md`, Phase 7b:
+
+- `manifest()` and `report()` against khads' publisher API, fail-empty like `slots()`.
+- `php artisan khads:check` to fail a deploy on a wrong key, a missing or inactive
+  zone, a site that cannot serve, or a zone format this client cannot render.
+- A publishable admin dashboard (`--tag=khads-dashboard`): spaces, analytics,
+  what is showing now, and a setup checklist.
+- Each slot tells khads which space templates it can render, and empty answers carry a reason.
+
+Phase 8g, spaces by name and copyable code:
+
+- Spaces are addressed by `slot_id` (`web.grid.card`), resolved to zone keys through
+  the manifest, so `.env` holds only the base URL and the API key.
+- `<KhadsSlot id="..." ads={sponsored} />` and `<x-khads::slot>`: one line per space,
+  with a renderer per template, a reserved skeleton box, house fill or collapse on
+  empty, the viewability hook, and the hide / report / why-this-ad menu.
+- `$ads->deferred($request, ...$slotIds)` for the controller side.
+- `php artisan khads:sync` creates the spaces declared in `config('khads.spaces')`
+  in khads; `khads:check` also fails on a `slot_id` used in code but unknown to khads.
+- The dashboard's Spaces table gets a "Get code" sheet per space with the same
+  snippets the khads console shows.
+
 ## Tests
 
 ```bash
