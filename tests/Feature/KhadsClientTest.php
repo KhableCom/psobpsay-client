@@ -97,9 +97,9 @@ test('the country header is the site\'s to choose', function () {
     Http::assertSent(fn (Request $r): bool => $r['country'] === 'TH');
 });
 
-test('a failing ad server leaves the slots empty and is left alone until the circuit closes', function () {
+test('a failing ad server leaves the slots empty and is left alone until the circuit closes', function (int $status) {
     khadsConfigured();
-    Http::fake(['*' => Http::response('upstream down', 503)]);
+    Http::fake(['*' => Http::response('upstream down', $status)]);
 
     expect(client()->slots(PAGE, config('khads.zones')))->toBe(['feed' => null, 'sidebar' => null])
         ->and(Cache::has(client()->circuitKey()))->toBeTrue();
@@ -112,6 +112,35 @@ test('a failing ad server leaves the slots empty and is left alone until the cir
     $this->travel(61)->seconds();
     client()->slots(PAGE, config('khads.zones'));
     Http::assertSentCount(2);
+})->with(['unavailable' => 503, 'erroring' => 500, 'rate limited' => 429]);
+
+test('a refused request empties only that page and is reported once an hour, not as an outage', function (int $status) {
+    khadsConfigured();
+    Exceptions::fake();
+    Http::fake(['*' => Http::response(['message' => 'refused'], $status)]);
+
+    // A wrong key or a request the ad server will not accept is this site's mistake.
+    // Opening the circuit would switch ads off for every visitor to hide it.
+    expect(client()->slots(PAGE, ['feed' => 'zn_feed']))->toBe(['feed' => null])
+        ->and(client()->status())->toMatchArray(['circuitOpen' => false, 'refusedStatus' => $status]);
+
+    client()->slots(PAGE, ['feed' => 'zn_feed']);
+    Http::assertSentCount(2);
+    Exceptions::assertReportedCount(1);
+
+    $this->travel(61)->minutes();
+    client()->slots(PAGE, ['feed' => 'zn_feed']);
+    Exceptions::assertReportedCount(2);
+})->with(['wrong key' => 401, 'invalid request' => 422, 'wrong path' => 404]);
+
+test('a rotated key clears the refusal it replaced', function () {
+    khadsConfigured();
+    Http::fake(['*' => Http::response(['message' => 'Unknown API key.'], 401)]);
+    client()->slots(PAGE, ['feed' => 'zn_feed']);
+
+    config()->set('khads.api_key', 'pk_'.str_repeat('b', 32));
+
+    expect(client()->status()['refusedStatus'])->toBeNull();
 });
 
 test('a host that cannot be reached is reported and opens the circuit like any other failure', function () {
@@ -260,6 +289,7 @@ test('status reports configuration and the circuit without asking the ad server'
         'configured' => true,
         'zones' => ['feed'],
         'circuitOpen' => true,
+        'refusedStatus' => null,
         'consoleUrl' => 'https://ads.test/publisher',
     ]);
 

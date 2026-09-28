@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Asks the ad server for every placement on a page in one call.
@@ -15,12 +16,17 @@ use Illuminate\Support\Str;
  * Fails empty, never loud: a timeout, an error, or an answer in a shape this code does
  * not recognise all become "no ad", and after one failure the server is left alone for
  * a while so a down ad server costs one timeout rather than one per page view.
+ * A refusal is different: a wrong key or a request the ad server will not accept is
+ * this site's mistake, not an outage, so it empties only that page and is reported
+ * at most once an hour instead of switching every page's ads off.
  *
  * @phpstan-type SponsoredAd array{id: string, headline: string|null, body: string|null, cta: string|null, brand: string|null, image: string|null, impressionUrl: string, clickUrl: string}
- * @phpstan-type AdsStatus array{enabled: bool, configured: bool, zones: list<string>, circuitOpen: bool, consoleUrl: string|null}
+ * @phpstan-type AdsStatus array{enabled: bool, configured: bool, zones: list<string>, circuitOpen: bool, refusedStatus: int|null, consoleUrl: string|null}
  */
 class KhadsClient
 {
+    private const RefusalReportSeconds = 3600;
+
     /** @var list<string> */
     private const SupportedFormats = ['native', 'in_feed', 'text'];
 
@@ -82,9 +88,18 @@ class KhadsClient
                     'country' => $country,
                 ]))
                 ->throw();
-        } catch (ConnectionException|RequestException $exception) {
-            Cache::add($this->circuitKey(), true, max(1, (int) config('khads.circuit_seconds')));
-            report($exception);
+        } catch (ConnectionException $exception) {
+            return $this->openCircuit($exception, $empty);
+        } catch (RequestException $exception) {
+            $status = $exception->response->status();
+
+            if ($status >= 500 || $status === 429) {
+                return $this->openCircuit($exception, $empty);
+            }
+
+            if (Cache::add($this->cacheKey('refused'), $status, self::RefusalReportSeconds)) {
+                report($exception);
+            }
 
             return $empty;
         }
@@ -95,7 +110,22 @@ class KhadsClient
     }
 
     /**
+     * @param  array<string, null>  $empty
+     * @return array<string, null>
+     */
+    private function openCircuit(Throwable $exception, array $empty): array
+    {
+        Cache::add($this->circuitKey(), true, max(1, (int) config('khads.circuit_seconds')));
+        report($exception);
+
+        return $empty;
+    }
+
+    /**
      * Read-only operational state for an admin dashboard. Never calls khads.
+     *
+     * `refusedStatus` is the HTTP status of a refusal in the past hour: 401 for a wrong
+     * key, 422 for a request the ad server would not accept. Rotating the key clears it.
      *
      * @return AdsStatus
      */
@@ -109,11 +139,14 @@ class KhadsClient
             }
         }
 
+        $refused = Cache::get($this->cacheKey('refused'));
+
         return [
             'enabled' => (bool) config('khads.enabled'),
             'configured' => $this->isConfigured() && $zones !== [],
             'zones' => $zones,
             'circuitOpen' => Cache::has($this->circuitKey()),
+            'refusedStatus' => is_numeric($refused) ? (int) $refused : null,
             'consoleUrl' => $this->httpUrl(config('khads.console_url')),
         ];
     }
@@ -153,9 +186,14 @@ class KhadsClient
      */
     public function circuitKey(): string
     {
+        return $this->cacheKey('circuit-open');
+    }
+
+    private function cacheKey(string $name): string
+    {
         $site = md5((string) config('khads.base_url').'|'.substr((string) config('khads.api_key'), 0, 12));
 
-        return 'khads:'.$site.':circuit-open';
+        return 'khads:'.$site.':'.$name;
     }
 
     private function isConfigured(): bool
