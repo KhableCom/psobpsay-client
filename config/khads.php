@@ -73,4 +73,29 @@ return [
      */
     'zones' => [],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Spaces
+    |--------------------------------------------------------------------------
+    |
+    | Templated spaces, by this site's own slot ids. `php artisan khads:sync`
+    | creates any that are missing in the ad console, and `KhadsClient::spaces()`
+    | finds each one's zone through the ad server's manifest, so none of them
+    | needs a zone key here. A slot id also listed under `zones` uses that key.
+    |
+    |     'spaces' => [
+    |         'web.grid.card' => ['template' => 'card_landscape'],
+    |         'web.home.rail' => ['template' => 'rail', 'max_ads' => 4],
+    |     ],
+    |
+    */
+
+    'spaces' => [],
+
+    /** The site's domain in the ad console; defaults to the host of `app.url`. */
+    'site' => env('ADS_SITE'),
+
+    /** How long the ad server's manifest of this site's spaces is kept. */
+    'manifest_seconds' => (int) env('ADS_MANIFEST_SECONDS', 300),
+
 ];

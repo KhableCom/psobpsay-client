@@ -96,6 +96,51 @@ Every Inertia request, including the deferred one that loads the ads, then carri
 `X-Khads-Seen` header, and `slotsFor()` passes the well-formed keys in it to khads.
 Counts live in the site's own `localStorage`, in the same format the khads tag uses.
 
+## Spaces by slot id
+
+A templated space (a card, a rail, a logo bar, …) is named by this site, not by a zone
+key. Declare the spaces in `config/khads.php` and create any that are missing in khads:
+
+```php
+'spaces' => [
+    'web.grid.card' => ['template' => 'card_landscape'],
+    'web.home.rail' => ['template' => 'rail', 'max_ads' => 4],
+],
+```
+
+```bash
+php artisan khads:sync   # safe on every deploy; never changes a space that exists
+```
+
+The site is `ADS_SITE`, or the host of `app.url`. Slot ids are resolved to zone keys
+through khads' manifest (`$ads->manifest()`, kept `ADS_MANIFEST_SECONDS`, default 300),
+so `.env` needs only the base URL and the API key. A slot id also listed under `zones`
+uses that key instead.
+
+Ask for every space on the page at once, deferred so the page draws first:
+
+```php
+'sponsored' => Inertia::defer(fn () => $ads->spaces($request, 'web.grid.card', 'web.home.rail')),
+```
+
+`spaces()` answers each slot id with a list of ads: one for a card, several for a rail,
+none when unfilled. Each ad has the card's fields plus `template`, `disclosure`,
+`assets` (crops by role), `logo`, `video` and `promo`. Then draw each space where it goes:
+
+```tsx
+<KhadsSlot id="web.grid.card" template="card_landscape" ads={sponsored} />
+```
+
+```blade
+<x-khads::slot id="web.grid.card" template="card_landscape" :ads="$sponsored" />
+```
+
+`KhadsSlot` (published with `--tag=khads-react`) keeps the template's box while the prop
+loads, draws nothing for an unfilled space, and frames every ad as one sponsored link
+with its own viewable impression. Pass `renderers={{ card_landscape: (ad, label) => … }}`
+to draw a template with your own card; the renderer draws only the inside and must show
+`label`. The khads console shows these lines for each space under **Get the tag → Laravel**.
+
 ## Privacy
 
 `slotsFor()` serves a visitor who sends `Sec-GPC: 1` or `DNT: 1` as restricted, as the
@@ -116,25 +161,14 @@ plain links and an image beacon; no script is loaded from the ad server.
 Planned, not yet built; the design lives in khads at
 `docs/ads-network/production-readiness-plan.md`, Phase 7b:
 
-- `manifest()` and `report()` against khads' publisher API, fail-empty like `slots()`.
+- `report()` against khads' publisher API, fail-empty like `slots()`.
 - `php artisan khads:check` to fail a deploy on a wrong key, a missing or inactive
-  zone, a site that cannot serve, or a zone format this client cannot render.
-- A publishable admin dashboard (`--tag=khads-dashboard`): spaces, analytics,
-  what is showing now, and a setup checklist.
+  zone, a `slot_id` used in code but unknown to khads, a site that cannot serve, or a
+  zone format this client cannot render.
+- A publishable admin dashboard (`--tag=khads-dashboard`): spaces with a "Get code"
+  sheet, analytics, what is showing now, and a setup checklist.
 - Each slot tells khads which space templates it can render, and empty answers carry a reason.
-
-Phase 8g, spaces by name and copyable code:
-
-- Spaces are addressed by `slot_id` (`web.grid.card`), resolved to zone keys through
-  the manifest, so `.env` holds only the base URL and the API key.
-- `<KhadsSlot id="..." ads={sponsored} />` and `<x-khads::slot>`: one line per space,
-  with a renderer per template, a reserved skeleton box, house fill or collapse on
-  empty, the viewability hook, and the hide / report / why-this-ad menu.
-- `$ads->deferred($request, ...$slotIds)` for the controller side.
-- `php artisan khads:sync` creates the spaces declared in `config('khads.spaces')`
-  in khads; `khads:check` also fails on a `slot_id` used in code but unknown to khads.
-- The dashboard's Spaces table gets a "Get code" sheet per space with the same
-  snippets the khads console shows.
+- The hide / report / why-this-ad menu on each space ad.
 
 ## Tests
 

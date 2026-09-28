@@ -4,6 +4,7 @@ namespace Khable\KhadsClient;
 
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
+use Khable\KhadsClient\Console\SyncSpacesCommand;
 
 class KhadsClientServiceProvider extends ServiceProvider
 {
@@ -23,6 +24,8 @@ class KhadsClientServiceProvider extends ServiceProvider
         if (! $this->app->runningInConsole()) {
             return;
         }
+
+        $this->commands([SyncSpacesCommand::class]);
 
         $this->publishes([__DIR__.'/../config/khads.php' => config_path('khads.php')], 'khads-config');
         $this->publishes([__DIR__.'/../stubs/react' => resource_path('js/components/khads')], 'khads-react');
