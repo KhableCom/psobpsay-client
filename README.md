@@ -59,6 +59,12 @@ public function __invoke(Request $request, KhadsClient $ads)
 `slotsFor()` returns one entry per placement you named — the shaped ad, or `null`.
 A placement with no zone configured is left out. Nothing is ever thrown.
 
+When the ad server is unreachable, erroring or rate limiting, the client stops asking for
+`ADS_CIRCUIT_SECONDS`. When it refuses the request — a wrong key (401) or a request it
+will not accept (422) — only that page goes empty; the refusal is reported at most once
+an hour and shows as `refusedStatus` in `$ads->status()`. Both are kept per site, so
+sister sites sharing a cache do not trip each other.
+
 ## Render it
 
 Blade:
@@ -73,8 +79,31 @@ React (Inertia): publish the card and restyle it to match your list.
 php artisan vendor:publish --tag=khads-react   # resources/js/components/khads/
 ```
 
-Keep `use-viewable-impression.ts` as published — it is what makes an impression
-count the way the ad server bills it (half the card on screen for one second).
+Keep `use-viewable-impression.ts` and `frequency-caps.ts` as published — the first
+makes an impression count the way the ad server bills it (half the card on screen for
+one second), the second keeps each campaign's daily frequency cap.
+
+Then forward the campaigns a visitor has capped out on, once, where the app is created:
+
+```tsx
+// resources/js/app.tsx
+import { forwardCappedCampaigns } from '@/components/khads/frequency-caps';
+
+forwardCappedCampaigns();
+```
+
+Every Inertia request, including the deferred one that loads the ads, then carries an
+`X-Khads-Seen` header, and `slotsFor()` passes the well-formed keys in it to khads.
+Counts live in the site's own `localStorage`, in the same format the khads tag uses.
+
+## Privacy
+
+`slotsFor()` serves a visitor who sends `Sec-GPC: 1` or `DNT: 1` as restricted, as the
+khads tag would, and forwards none of their caps; the React card counts nothing for them
+either. There is nothing to configure.
+
+Blade pages get the privacy handling but not frequency caps: a full page load has no
+follow-up request to carry the header.
 
 ## Content Security Policy
 
