@@ -39,6 +39,7 @@ test('every placement is asked for in one call, keyed to the site, and only rend
             'image' => 'https://cdn.test/a.png',
             'impressionUrl' => 'https://ads.test/api/v1/imp/cr_feed.gif',
             'clickUrl' => 'https://ads.test/api/v1/click/cr_feed',
+            'frequency' => null,
         ]);
 
     Http::assertSentCount(1);
@@ -84,6 +85,56 @@ test('an edge placeholder for the country is dropped rather than failing the pag
     'lower case' => ['kh', 'KH'],
     'padded' => [' KH ', 'KH'],
     'missing' => [null, null],
+]);
+
+test('a visitor who asks not to be tracked is served as restricted and their caps are not sent', function (array $server) {
+    khadsConfigured();
+    Http::fake();
+    $capped = 'cmp_'.str_repeat('a', 32);
+
+    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: [...$server, 'HTTP_X_KHADS_SEEN' => $capped]), PAGE, 'feed');
+
+    Http::assertSent(fn (Request $r): bool => $r['privacy'] === 'restricted' && ! array_key_exists('seen', $r->data()));
+})->with([
+    'Global Privacy Control' => [['HTTP_SEC_GPC' => '1']],
+    'Do Not Track' => [['HTTP_DNT' => '1']],
+]);
+
+test('campaigns the visitor has capped out on are forwarded so the daily cap holds', function () {
+    khadsConfigured();
+    Http::fake();
+    $first = 'cmp_'.str_repeat('a', 32);
+    $second = 'cmp_'.str_repeat('b', 32);
+
+    // The header comes from the browser: one malformed entry would have the ad server
+    // refuse the whole page, so only well-formed keys go on, once each.
+    $header = "{$first}, not-a-campaign,{$second},{$first},cmp_SHOUTING".str_repeat('A', 28);
+    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: ['HTTP_X_KHADS_SEEN' => $header]), PAGE, 'feed');
+
+    Http::assertSent(fn (Request $r): bool => $r['privacy'] === 'standard' && $r['seen'] === "{$first},{$second}");
+});
+
+test('no more capped campaigns are forwarded than the ad server accepts', function () {
+    khadsConfigured();
+    Http::fake();
+    $keys = array_map(fn (int $i): string => 'cmp_'.str_pad((string) $i, 32, '0', STR_PAD_LEFT), range(1, 60));
+
+    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: ['HTTP_X_KHADS_SEEN' => implode(',', $keys)]), PAGE, 'feed');
+
+    Http::assertSent(fn (Request $r): bool => $r['seen'] === implode(',', array_slice($keys, -50)));
+});
+
+test('an ad carries its frequency cap to the card only when it is well formed', function (mixed $frequency, ?array $shaped) {
+    khadsConfigured();
+    Http::fake(['*' => Http::response(['slots' => ['feed' => ['ad' => [...servedAd('cr_capped'), 'frequency' => $frequency]]]])]);
+
+    expect(client()->slots(PAGE, ['feed' => 'zn_feed'])['feed']['frequency'])->toBe($shaped);
+})->with([
+    'capped' => [['key' => 'cmp_'.str_repeat('a', 32), 'cap' => 3], ['key' => 'cmp_'.str_repeat('a', 32), 'cap' => 3]],
+    'uncapped' => [null, null],
+    'not a campaign key' => [['key' => 'javascript:x', 'cap' => 3], null],
+    'no cap' => [['key' => 'cmp_'.str_repeat('a', 32), 'cap' => 0], null],
+    'cap as text' => [['key' => 'cmp_'.str_repeat('a', 32), 'cap' => '3'], null],
 ]);
 
 test('the country header is the site\'s to choose', function () {

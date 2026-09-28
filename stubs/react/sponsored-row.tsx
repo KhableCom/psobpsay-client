@@ -19,7 +19,7 @@ export function SponsoredRow({
     newTabHint?: string;
     className?: string;
 }) {
-    const ref = useViewableImpression(ad.impressionUrl);
+    const ref = useViewableImpression(ad.impressionUrl, ad.frequency);
 
     return (
         <article ref={ref} data-ad-id={ad.id} className={className}>

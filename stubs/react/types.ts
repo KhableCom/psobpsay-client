@@ -8,6 +8,8 @@ export type SponsoredAd = {
     image: string | null;
     impressionUrl: string;
     clickUrl: string;
+    /** The campaign's daily cap for this visitor, counted in the browser; null when uncapped. */
+    frequency: { key: string; cap: number } | null;
 };
 
 /**

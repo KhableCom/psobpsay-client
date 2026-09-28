@@ -1,16 +1,24 @@
 import { useEffect, useRef } from 'react';
+import { countImpression } from './frequency-caps';
+import type { SponsoredAd } from './types';
 
 /**
  * Counts an impression the way the ad server bills it: at least half the card on
  * screen for a full second, once per mount. A card scrolled past too fast to read is
- * not an impression and is not sent.
+ * not an impression and is not sent. The same moment counts toward the campaign's daily
+ * frequency cap, so a card that was never seen does not use up the visitor's allowance.
  *
  * Published by khable/khads-client. Keep this file as published: it is the part of the
  * card the ad server's billing depends on, and a diff against the package stub is the
  * check that it has not drifted.
  */
-export function useViewableImpression(url: string) {
+export function useViewableImpression(
+    url: string,
+    frequency: SponsoredAd['frequency'] = null,
+) {
     const ref = useRef<HTMLElement | null>(null);
+    const frequencyKey = frequency?.key ?? null;
+    const frequencyCap = frequency?.cap ?? 0;
 
     useEffect(() => {
         const element = ref.current;
@@ -51,6 +59,11 @@ export function useViewableImpression(url: string) {
                 // A plain image request needs no CORS and survives navigation.
                 const beacon = new Image();
                 beacon.src = url;
+                countImpression(
+                    frequencyKey
+                        ? { key: frequencyKey, cap: frequencyCap }
+                        : null,
+                );
                 observer.disconnect();
                 document.removeEventListener(
                     'visibilitychange',
@@ -95,7 +108,7 @@ export function useViewableImpression(url: string) {
                 handleVisibilityChange,
             );
         };
-    }, [url]);
+    }, [url, frequencyKey, frequencyCap]);
 
     return ref;
 }

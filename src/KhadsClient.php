@@ -20,12 +20,18 @@ use Throwable;
  * this site's mistake, not an outage, so it empties only that page and is reported
  * at most once an hour instead of switching every page's ads off.
  *
- * @phpstan-type SponsoredAd array{id: string, headline: string|null, body: string|null, cta: string|null, brand: string|null, image: string|null, impressionUrl: string, clickUrl: string}
+ * @phpstan-type Frequency array{key: string, cap: int}
+ * @phpstan-type SponsoredAd array{id: string, headline: string|null, body: string|null, cta: string|null, brand: string|null, image: string|null, impressionUrl: string, clickUrl: string, frequency: Frequency|null}
  * @phpstan-type AdsStatus array{enabled: bool, configured: bool, zones: list<string>, circuitOpen: bool, refusedStatus: int|null, consoleUrl: string|null}
  */
 class KhadsClient
 {
+    /** Set by the published `forwardCappedCampaigns()` hook on the page's own requests. */
+    public const SeenHeader = 'X-Khads-Seen';
+
     private const RefusalReportSeconds = 3600;
+
+    private const CampaignKeyPattern = '/\Acmp_[a-z0-9]{32}\z/';
 
     /** @var list<string> */
     private const SupportedFormats = ['native', 'in_feed', 'text'];
@@ -35,6 +41,11 @@ class KhadsClient
      * `khads.zones`, with the visitor's country read from the edge header the
      * site sits behind. A placement with no zone configured is simply not asked
      * for and is absent from the answer.
+     *
+     * A visitor who sends Global Privacy Control or Do Not Track is served as
+     * restricted, exactly as the khads tag would serve them. Anyone else's capped-out
+     * campaigns, forwarded by the page in {@see SeenHeader}, are passed on so a
+     * campaign's daily frequency cap holds here too.
      *
      * @return array<string, SponsoredAd|null>
      */
@@ -47,8 +58,32 @@ class KhadsClient
         }
 
         $header = (string) config('khads.country_header', 'CF-IPCountry');
+        $restricted = $request->header('Sec-GPC') === '1' || $request->header('DNT') === '1';
 
-        return $this->slots($page, $zones, $header === '' ? null : self::country($request->header($header)));
+        return $this->slots(
+            $page,
+            $zones,
+            $header === '' ? null : self::country($request->header($header)),
+            $restricted,
+            $restricted ? [] : self::seen($request->header(self::SeenHeader)),
+        );
+    }
+
+    /**
+     * The header comes from the browser, so only well-formed campaign keys go on: the ad
+     * server refuses the whole page over one bad entry. Newest last, capped at the 50 it
+     * accepts.
+     *
+     * @return list<string>
+     */
+    private static function seen(?string $value): array
+    {
+        $keys = array_filter(
+            array_map(trim(...), explode(',', (string) $value)),
+            fn (string $key): bool => preg_match(self::CampaignKeyPattern, $key) === 1,
+        );
+
+        return array_slice(array_values(array_unique($keys)), -50);
     }
 
     /**
@@ -65,9 +100,11 @@ class KhadsClient
 
     /**
      * @param  array<string, string|null>  $slots  placement name => zone public key
+     * @param  bool  $restricted  the visitor asked not to be tracked
+     * @param  list<string>  $seen  campaign keys the visitor has capped out on today
      * @return array<string, SponsoredAd|null> one entry per requested placement
      */
-    public function slots(string $page, array $slots, ?string $country = null): array
+    public function slots(string $page, array $slots, ?string $country = null, bool $restricted = false, array $seen = []): array
     {
         $slots = array_filter($slots, fn (?string $zone): bool => filled($zone));
         $empty = array_fill_keys(array_keys($slots), null);
@@ -86,6 +123,8 @@ class KhadsClient
                     'page' => $page,
                     'slots' => collect($slots)->map(fn (string $zone, string $id): array => ['id' => $id, 'zone' => $zone])->values()->all(),
                     'country' => $country,
+                    'privacy' => $restricted ? 'restricted' : 'standard',
+                    'seen' => $restricted ? null : implode(',', $seen),
                 ]))
                 ->throw();
         } catch (ConnectionException $exception) {
@@ -248,7 +287,23 @@ class KhadsClient
             'image' => $image,
             'impressionUrl' => $ad['impression_url'],
             'clickUrl' => $ad['click_url'],
+            'frequency' => self::frequency($ad['frequency'] ?? null),
         ];
+    }
+
+    /**
+     * What the card counts toward a campaign's daily cap. Anything malformed is dropped,
+     * which serves that visitor an extra impression rather than losing the ad.
+     *
+     * @return Frequency|null
+     */
+    private static function frequency(mixed $value): ?array
+    {
+        if (! is_array($value) || ! is_string($value['key'] ?? null) || preg_match(self::CampaignKeyPattern, $value['key']) !== 1) {
+            return null;
+        }
+
+        return is_int($value['cap'] ?? null) && $value['cap'] >= 1 ? ['key' => $value['key'], 'cap' => $value['cap']] : null;
     }
 
     private function httpUrl(mixed $value): ?string
