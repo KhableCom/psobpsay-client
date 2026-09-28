@@ -102,7 +102,7 @@ test('a failing ad server leaves the slots empty and is left alone until the cir
     Http::fake(['*' => Http::response('upstream down', 503)]);
 
     expect(client()->slots(PAGE, config('khads.zones')))->toBe(['feed' => null, 'sidebar' => null])
-        ->and(Cache::has(KhadsClient::CircuitKey))->toBeTrue();
+        ->and(Cache::has(client()->circuitKey()))->toBeTrue();
 
     // One failure is the whole cost of a down ad server: the next page view does not pay it again.
     client()->slots(PAGE, config('khads.zones'));
@@ -120,9 +120,25 @@ test('a host that cannot be reached is reported and opens the circuit like any o
     Http::fake(fn () => throw new ConnectionException('cURL error 28'));
 
     expect(client()->slots(PAGE, ['feed' => 'zn_feed']))->toBe(['feed' => null])
-        ->and(Cache::has(KhadsClient::CircuitKey))->toBeTrue();
+        ->and(Cache::has(client()->circuitKey()))->toBeTrue();
 
     Exceptions::assertReported(ConnectionException::class);
+});
+
+test('sites sharing a cache keep their circuits apart', function () {
+    khadsConfigured();
+    Http::fake(['*' => Http::response('upstream down', 503)]);
+    client()->slots(PAGE, ['feed' => 'zn_feed']);
+
+    // A sister site on the same Redis, with its own key, is still asked for ads.
+    config()->set('khads.api_key', 'pk_'.str_repeat('b', 32));
+    client()->slots(PAGE, ['feed' => 'zn_feed']);
+    Http::assertSentCount(2);
+
+    // The first site is still left alone until its own circuit closes.
+    config()->set('khads.api_key', 'pk_'.str_repeat('a', 32));
+    client()->slots(PAGE, ['feed' => 'zn_feed']);
+    Http::assertSentCount(2);
 });
 
 test('the connect budget never exceeds the whole budget and neither drops below 50ms', function () {
@@ -236,7 +252,7 @@ test('status reports configuration and the circuit without asking the ad server'
     khadsConfigured();
     config()->set('khads.zones', ['feed' => 'zn_feed', 'sidebar' => null, 'post' => '']);
     config()->set('khads.console_url', 'https://ads.test/publisher');
-    Cache::put(KhadsClient::CircuitKey, true, 60);
+    Cache::put(client()->circuitKey(), true, 60);
     Http::fake();
 
     expect(client()->status())->toBe([

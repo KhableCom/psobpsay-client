@@ -21,8 +21,6 @@ use Illuminate\Support\Str;
  */
 class KhadsClient
 {
-    public const CircuitKey = 'khads:circuit-open';
-
     /** @var list<string> */
     private const SupportedFormats = ['native', 'in_feed', 'text'];
 
@@ -68,7 +66,7 @@ class KhadsClient
         $slots = array_filter($slots, fn (?string $zone): bool => filled($zone));
         $empty = array_fill_keys(array_keys($slots), null);
 
-        if ($slots === [] || ! $this->isConfigured() || Cache::has(self::CircuitKey)) {
+        if ($slots === [] || ! $this->isConfigured() || Cache::has($this->circuitKey())) {
             return $empty;
         }
 
@@ -85,7 +83,7 @@ class KhadsClient
                 ]))
                 ->throw();
         } catch (ConnectionException|RequestException $exception) {
-            Cache::add(self::CircuitKey, true, max(1, (int) config('khads.circuit_seconds')));
+            Cache::add($this->circuitKey(), true, max(1, (int) config('khads.circuit_seconds')));
             report($exception);
 
             return $empty;
@@ -115,7 +113,7 @@ class KhadsClient
             'enabled' => (bool) config('khads.enabled'),
             'configured' => $this->isConfigured() && $zones !== [],
             'zones' => $zones,
-            'circuitOpen' => Cache::has(self::CircuitKey),
+            'circuitOpen' => Cache::has($this->circuitKey()),
             'consoleUrl' => $this->httpUrl(config('khads.console_url')),
         ];
     }
@@ -144,6 +142,20 @@ class KhadsClient
     public function connectTimeoutSeconds(): float
     {
         return min($this->timeoutSeconds(), max(50, (int) config('khads.connect_timeout_ms')) / 1000);
+    }
+
+    /**
+     * Sister sites often share one cache. Keyed by the ad server and the site's own key,
+     * one site's failures open only its own circuit, and a rotated key starts clean.
+     * Only the key's prefix is used, so the cache never holds the secret.
+     *
+     * @internal Public so tests can open the circuit.
+     */
+    public function circuitKey(): string
+    {
+        $site = md5((string) config('khads.base_url').'|'.substr((string) config('khads.api_key'), 0, 12));
+
+        return 'khads:'.$site.':circuit-open';
     }
 
     private function isConfigured(): bool
