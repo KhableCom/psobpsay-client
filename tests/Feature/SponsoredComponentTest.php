@@ -31,7 +31,7 @@ test('the card is one sponsored link with the beacon and the creative on it', fu
         ->toContain('target="_blank"')
         ->toContain('rel="sponsored nofollow noopener"')
         ->toContain('data-psobpsay-impression="https://ads.test/api/v1/imp/cr_feed.gif"')
-        ->toContain('data-ad-id="cr_feed"')
+        ->toContain('data-card-id="cr_feed"')
         ->toContain('src="https://cdn.test/a.png"')
         ->toContain('>Brand<')
         ->toContain('>Sponsored<')
@@ -45,7 +45,7 @@ test('the card is one sponsored link with the beacon and the creative on it', fu
 test('the new-tab hint is read out even without a call to action, and the image is optional', function () {
     $html = renderCard(shapedAd(['cta' => null, 'image' => null]));
 
-    expect($html)->toContain('(opens in a new tab)')->not->toContain('<img')->not->toContain('psobpsay-ad__cta');
+    expect($html)->toContain('(opens in a new tab)')->not->toContain('<img')->not->toContain('psobpsay-card__cta');
 });
 
 test('an empty slot renders nothing at all', function () {
@@ -63,7 +63,7 @@ test('the beacon script is emitted once per page and carries the nonce it is giv
         ['first' => shapedAd(), 'second' => shapedAd(['id' => 'cr_two'])],
     );
 
-    expect($html)->toContain('data-ad-id="cr_feed"')->toContain('data-ad-id="cr_two"')
+    expect($html)->toContain('data-card-id="cr_feed"')->toContain('data-card-id="cr_two"')
         ->and(substr_count($html, '<script'))->toBe(1)
         ->and($html)->toContain('<script nonce="abc">');
 });

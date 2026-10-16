@@ -22,7 +22,7 @@ export function SponsoredRow({
     const ref = useViewableImpression(ad.impressionUrl, ad.frequency);
 
     return (
-        <article ref={ref} data-ad-id={ad.id} className={className}>
+        <article ref={ref} data-card-id={ad.id} className={className}>
             <a
                 href={ad.clickUrl}
                 target="_blank"

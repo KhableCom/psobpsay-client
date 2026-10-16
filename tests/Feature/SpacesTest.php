@@ -207,8 +207,8 @@ test('the Blade slot draws its own space with the space\'s disclosure, and nothi
 
     expect($html)->toContain('data-psobpsay-slot="web.home.rail"')
         ->toContain('psobpsay-slot--rail')
-        ->toContain('data-ad-id="cr_a"')
-        ->toContain('data-ad-id="cr_b"')
+        ->toContain('data-card-id="cr_a"')
+        ->toContain('data-card-id="cr_b"')
         ->and(substr_count($html, '>Paid partner<'))->toBe(2)
         ->and(trim(Blade::render('<x-psobpsay::slot id="web.grid.card" :ads="$ads" />', ['ads' => $ads])))->toBe('')
         ->and(trim(Blade::render('<x-psobpsay::slot id="web.nowhere" :ads="$ads" />', ['ads' => $ads])))->toBe('')

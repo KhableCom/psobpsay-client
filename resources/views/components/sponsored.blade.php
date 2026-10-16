@@ -1,26 +1,26 @@
-<article {{ $attributes->class(['psobpsay-ad']) }} data-ad-id="{{ $ad['id'] ?? '' }}" data-psobpsay-impression="{{ $ad['impressionUrl'] }}">
-    <a class="psobpsay-ad__link" href="{{ $ad['clickUrl'] }}" target="_blank" rel="sponsored nofollow noopener">
+<article {{ $attributes->class(['psobpsay-card']) }} data-card-id="{{ $ad['id'] ?? '' }}" data-psobpsay-impression="{{ $ad['impressionUrl'] }}">
+    <a class="psobpsay-card__link" href="{{ $ad['clickUrl'] }}" target="_blank" rel="sponsored nofollow noopener">
         @if (! empty($ad['image']))
             {{-- The ad server checks a creative image for size, not shape: keep a fixed box and contain the image. --}}
-            <img class="psobpsay-ad__image" src="{{ $ad['image'] }}" alt="" width="1200" height="630" loading="lazy">
+            <img class="psobpsay-card__image" src="{{ $ad['image'] }}" alt="" width="1200" height="630" loading="lazy">
         @endif
-        <div class="psobpsay-ad__content">
-            <div class="psobpsay-ad__meta">
+        <div class="psobpsay-card__content">
+            <div class="psobpsay-card__meta">
                 @if (! empty($ad['brand']))
-                    <span class="psobpsay-ad__brand">{{ $ad['brand'] }}</span>
+                    <span class="psobpsay-card__brand">{{ $ad['brand'] }}</span>
                 @endif
-                <span class="psobpsay-ad__label">{{ $label }}</span>
+                <span class="psobpsay-card__label">{{ $label }}</span>
             </div>
             @if (! empty($ad['headline']))
-                <p class="psobpsay-ad__headline">{{ $ad['headline'] }}</p>
+                <p class="psobpsay-card__headline">{{ $ad['headline'] }}</p>
             @endif
             @if (! empty($ad['body']))
-                <p class="psobpsay-ad__body">{{ $ad['body'] }}</p>
+                <p class="psobpsay-card__body">{{ $ad['body'] }}</p>
             @endif
             @if (! empty($ad['cta']))
-                <p class="psobpsay-ad__cta">{{ $ad['cta'] }}</p>
+                <p class="psobpsay-card__cta">{{ $ad['cta'] }}</p>
             @endif
-            <span class="psobpsay-ad__hint" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">{{ $newTabHint }}</span>
+            <span class="psobpsay-card__hint" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">{{ $newTabHint }}</span>
         </div>
     </a>
 </article>

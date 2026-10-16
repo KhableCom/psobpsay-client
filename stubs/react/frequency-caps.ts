@@ -10,7 +10,7 @@ import type { SponsoredAd } from './types';
  * Published by khable/psobpsay-client. Keep this file as published: the storage format is
  * shared with the psobpsay tag, so a site running both counts one cap, not two.
  */
-const STORE = 'kh_ad_freq';
+const STORE = 'pp_freq';
 const SEEN_HEADER = 'X-PsobPsay-Seen';
 
 type Caps = Record<string, { d: string; n: number; c: number }>;

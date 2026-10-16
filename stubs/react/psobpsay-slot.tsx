@@ -101,7 +101,7 @@ function SpaceAdFrame({
     const ref = useViewableImpression(ad.impressionUrl, ad.frequency);
 
     return (
-        <article ref={ref} data-ad-id={ad.id}>
+        <article ref={ref} data-card-id={ad.id}>
             <a
                 href={ad.clickUrl}
                 target="_blank"
