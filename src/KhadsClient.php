@@ -39,6 +39,9 @@ class KhadsClient
     /** @var list<string> */
     private const SupportedFormats = ['native', 'in_feed', 'text'];
 
+    /** Templates supported by the bundled static card renderer. */
+    public const SupportedTemplates = ['card_landscape', 'card_portrait', 'row_compact', 'bar_logo', 'rail', 'logo_grid', 'hero_cobrand'];
+
     /** @var list<string> */
     private const Disclosures = ['sponsored', 'promoted', 'presented', 'paid', 'ad'];
 
@@ -82,7 +85,7 @@ class KhadsClient
         $page = $request->url();
         $empty = array_fill_keys($slotIds, []);
         $zones = $this->zoneKeys($page, $slotIds);
-        $answer = $this->serve($page, $zones, ...$this->visitor($request));
+        $answer = $this->serve($page, $zones, ...[...$this->visitor($request), [...self::SupportedFormats, ...self::SupportedTemplates]]);
 
         if ($answer === null) {
             return $empty;
@@ -161,6 +164,42 @@ class KhadsClient
         Cache::put($this->cacheKey('manifest'), $manifest, max(1, (int) config('khads.manifest_seconds', 300)));
 
         return $manifest;
+    }
+
+    /**
+     * Publisher analytics cached per date range, dimension and site.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function report(string $from, string $to, string $dimension = 'day', ?string $site = null): ?array
+    {
+        if (! $this->isConfigured() || Cache::has($this->circuitKey())) {
+            return null;
+        }
+
+        $query = array_filter(compact('from', 'to', 'dimension', 'site'), fn ($value): bool => $value !== null);
+        $key = $this->cacheKey('report:'.hash('sha256', json_encode($query, JSON_THROW_ON_ERROR)));
+        $cached = Cache::get($key);
+
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        try {
+            $report = $this->http()->get('/api/v1/publisher/report', $query)->throw()->json();
+        } catch (ConnectionException $exception) {
+            return $this->openCircuit($exception, null);
+        } catch (RequestException $exception) {
+            return $this->refused($exception, null);
+        }
+
+        if (! is_array($report) || ! is_array($report['rows'] ?? null) || ! is_array($report['totals'] ?? null)) {
+            return null;
+        }
+
+        Cache::put($key, $report, 60);
+
+        return $report;
     }
 
     /** Drop the cached manifest, so a space just created is served on the next page view. */
@@ -286,9 +325,10 @@ class KhadsClient
      *
      * @param  array<string, string|null>  $slots  slot id => zone public key
      * @param  list<string>  $seen
+     * @param  list<string>  $accepts
      * @return array<string, mixed>|null
      */
-    private function serve(string $page, array $slots, ?string $country, bool $restricted, array $seen): ?array
+    private function serve(string $page, array $slots, ?string $country, bool $restricted, array $seen, array $accepts = self::SupportedFormats): ?array
     {
         $slots = array_filter($slots, fn (?string $zone): bool => filled($zone));
 
@@ -300,7 +340,7 @@ class KhadsClient
             $response = $this->http()
                 ->post('/api/v1/serve', array_filter([
                     'page' => $page,
-                    'slots' => collect($slots)->map(fn (string $zone, string $id): array => ['id' => $id, 'zone' => $zone])->values()->all(),
+                    'slots' => collect($slots)->map(fn (string $zone, string $id): array => ['id' => $id, 'zone' => $zone, 'accepts' => $accepts])->values()->all(),
                     'country' => $country,
                     'privacy' => $restricted ? 'restricted' : 'standard',
                     'seen' => $restricted ? null : implode(',', $seen),
@@ -423,7 +463,7 @@ class KhadsClient
     /**
      * Sister sites often share one cache. Keyed by the ad server and the site's own key,
      * one site's failures open only its own circuit, and a rotated key starts clean.
-     * Only the key's prefix is used, so the cache never holds the secret.
+     * The whole credential is hashed, so shared prefixes cannot share cached data.
      *
      * @internal Public so tests can open the circuit.
      */
@@ -434,7 +474,7 @@ class KhadsClient
 
     private function cacheKey(string $name): string
     {
-        $site = md5((string) config('khads.base_url').'|'.substr((string) config('khads.api_key'), 0, 12));
+        $site = hash('sha256', (string) config('khads.base_url').'|'.(string) config('khads.api_key'));
 
         return 'khads:'.$site.':'.$name;
     }

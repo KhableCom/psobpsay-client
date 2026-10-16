@@ -46,7 +46,7 @@ test('every placement is asked for in one call, keyed to the site, and only rend
     Http::assertSent(fn (Request $request): bool => $request->hasHeader('Authorization', 'Bearer pk_'.str_repeat('a', 32))
         && $request['page'] === PAGE
         && $request['country'] === 'KH'
-        && $request['slots'] === [['id' => 'feed', 'zone' => 'zn_feed'], ['id' => 'sidebar', 'zone' => 'zn_side']]);
+        && $request['slots'] === [['id' => 'feed', 'zone' => 'zn_feed', 'accepts' => ['native', 'in_feed', 'text']], ['id' => 'sidebar', 'zone' => 'zn_side', 'accepts' => ['native', 'in_feed', 'text']]]);
 });
 
 test('an unknown country is left out rather than sent empty', function () {
@@ -67,7 +67,7 @@ test('slotsFor resolves placements by name and reads the country from the edge h
     expect(client()->slotsFor($request, PAGE, 'feed', 'nowhere'))->toBe(['feed' => null]);
 
     Http::assertSent(fn (Request $r): bool => $r['country'] === 'KH'
-        && $r['slots'] === [['id' => 'feed', 'zone' => 'zn_feed']]);
+        && $r['slots'] === [['id' => 'feed', 'zone' => 'zn_feed', 'accepts' => ['native', 'in_feed', 'text']]]);
 });
 
 test('an edge placeholder for the country is dropped rather than failing the page', function (?string $header, ?string $sent) {

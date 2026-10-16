@@ -74,7 +74,7 @@ test('spaces are addressed by slot id, resolved through the manifest for the pag
     // are asked for: another site's zone of the same slot id would earn for the wrong page.
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/api/v1/serve')
         && $request['page'] === 'https://www.site.test/events'
-        && $request['slots'] === [['id' => 'web.home.rail', 'zone' => 'zn_rail'], ['id' => 'web.grid.card', 'zone' => 'zn_card']]);
+        && $request['slots'] === [['id' => 'web.home.rail', 'zone' => 'zn_rail', 'accepts' => ['native', 'in_feed', 'text', ...KhadsClient::SupportedTemplates]], ['id' => 'web.grid.card', 'zone' => 'zn_card', 'accepts' => ['native', 'in_feed', 'text', ...KhadsClient::SupportedTemplates]]]);
 
     // The manifest is read once and kept, so a page view costs one serve call.
     app(KhadsClient::class)->spaces(pageRequest(), 'web.home.rail');
@@ -88,7 +88,7 @@ test('a slot id listed in khads.zones uses that key without reading the manifest
     app(KhadsClient::class)->spaces(pageRequest(), 'web.grid.card');
 
     Http::assertSentCount(1);
-    Http::assertSent(fn (Request $request): bool => $request['slots'] === [['id' => 'web.grid.card', 'zone' => 'zn_pinned']]);
+    Http::assertSent(fn (Request $request): bool => $request['slots'] === [['id' => 'web.grid.card', 'zone' => 'zn_pinned', 'accepts' => ['native', 'in_feed', 'text', ...KhadsClient::SupportedTemplates]]]);
 });
 
 test('nothing unsafe in a space ad reaches the page', function () {
@@ -123,7 +123,9 @@ test('nothing unsafe in a space ad reaches the page', function () {
 
 test('an ad server that answers only `ad` still fills a one-ad space', function () {
     config()->set('khads.zones', ['s' => 'zn_s']);
-    Http::fake(['https://ads.test/api/v1/serve' => Http::response(['slots' => ['s' => ['ad' => servedAd('cr_old'), 'no_fill' => false]]])]);
+    Http::fake(['https://ads.test/api/v1/serve' => function (Request $request) {
+        return Http::response(['slots' => ['s' => ['ad' => in_array('native', $request['slots'][0]['accepts'], true) ? servedAd('cr_old') : null]]]);
+    }]);
 
     $ads = app(KhadsClient::class)->spaces(pageRequest(), 's')['s'];
 
