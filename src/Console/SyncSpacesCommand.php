@@ -1,43 +1,43 @@
 <?php
 
-namespace Khable\KhadsClient\Console;
+namespace Khable\PsobPsayClient\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
-use Khable\KhadsClient\KhadsClient;
+use Khable\PsobPsayClient\PsobPsayClient;
 
 /**
- * Creates the spaces in `khads.spaces` that the ad console does not have yet. Safe to run
+ * Creates the spaces in `psobpsay.spaces` that the ad console does not have yet. Safe to run
  * on every deploy: a space that exists is never changed, only reported when its template
  * or ad count there differs from this config, since the console is where it was changed.
  */
 class SyncSpacesCommand extends Command
 {
-    protected $signature = 'khads:sync {--site= : The site\'s domain in the ad console}';
+    protected $signature = 'psobpsay:sync {--site= : The site\'s domain in the ad console}';
 
-    protected $description = 'Create the ad spaces declared in config/khads.php on the ad server';
+    protected $description = 'Create the ad spaces declared in config/psobpsay.php on the ad server';
 
-    public function handle(KhadsClient $khads): int
+    public function handle(PsobPsayClient $psobpsay): int
     {
         /** @var array<string, array<string, mixed>> $spaces */
-        $spaces = (array) config('khads.spaces', []);
+        $spaces = (array) config('psobpsay.spaces', []);
         $site = $this->site();
 
         if ($spaces === []) {
-            $this->components->info('No spaces are declared in khads.spaces.');
+            $this->components->info('No spaces are declared in psobpsay.spaces.');
 
             return self::SUCCESS;
         }
 
-        if ($site === '' || blank(config('khads.base_url')) || blank(config('khads.api_key'))) {
+        if ($site === '' || blank(config('psobpsay.base_url')) || blank(config('psobpsay.api_key'))) {
             $this->components->error('Set ADS_BASE_URL, ADS_API_KEY and the site (ADS_SITE or app.url) first.');
 
             return self::FAILURE;
         }
 
         try {
-            $answer = $khads->syncSpaces($site, $spaces);
+            $answer = $psobpsay->syncSpaces($site, $spaces);
         } catch (RequestException $exception) {
             $this->components->error(sprintf('The ad server refused the sync (%d): %s', $exception->response->status(), $exception->response->body()));
 
@@ -71,7 +71,7 @@ class SyncSpacesCommand extends Command
 
     private function site(): string
     {
-        $site = $this->option('site') ?: config('khads.site') ?: parse_url((string) config('app.url'), PHP_URL_HOST);
+        $site = $this->option('site') ?: config('psobpsay.site') ?: parse_url((string) config('app.url'), PHP_URL_HOST);
 
         return strtolower(preg_replace('/\Awww\./', '', trim((string) $site)) ?? '');
     }

@@ -1,6 +1,6 @@
 <?php
 
-namespace Khable\KhadsClient;
+namespace Khable\PsobPsayClient;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -27,10 +27,10 @@ use Throwable;
  * @phpstan-type SpaceAd array{id: string, headline: string|null, body: string|null, cta: string|null, brand: string|null, image: string|null, impressionUrl: string, clickUrl: string, frequency: Frequency|null, template: string|null, disclosure: string, assets: array<string, Picture>, logo: Picture|null, video: array{src: string, poster: string|null, durationMs: int|null}|null, promo: array{code: string, terms: string|null}|null}
  * @phpstan-type AdsStatus array{enabled: bool, configured: bool, zones: list<string>, circuitOpen: bool, refusedStatus: int|null, consoleUrl: string|null}
  */
-class KhadsClient
+class PsobPsayClient
 {
     /** Set by the published `forwardCappedCampaigns()` hook on the page's own requests. */
-    public const SeenHeader = 'X-Khads-Seen';
+    public const SeenHeader = 'X-PsobPsay-Seen';
 
     private const RefusalReportSeconds = 3600;
 
@@ -47,12 +47,12 @@ class KhadsClient
 
     /**
      * Every placement a page shows, by the names this site gave them in
-     * `khads.zones`, with the visitor's country read from the edge header the
+     * `psobpsay.zones`, with the visitor's country read from the edge header the
      * site sits behind. A placement with no zone configured is simply not asked
      * for and is absent from the answer.
      *
      * A visitor who sends Global Privacy Control or Do Not Track is served as
-     * restricted, exactly as the khads tag would serve them. Anyone else's capped-out
+     * restricted, exactly as the psobpsay tag would serve them. Anyone else's capped-out
      * campaigns, forwarded by the page in {@see SeenHeader}, are passed on so a
      * campaign's daily frequency cap holds here too.
      *
@@ -63,7 +63,7 @@ class KhadsClient
         $zones = [];
 
         foreach ($placements as $placement) {
-            $zones[$placement] = config('khads.zones.'.$placement);
+            $zones[$placement] = config('psobpsay.zones.'.$placement);
         }
 
         return $this->slots($page, $zones, ...$this->visitor($request));
@@ -74,8 +74,8 @@ class KhadsClient
      * the request is for. Each answer is the list of ads the space draws: one for a card,
      * several for a rail, none when it goes unfilled (draw nothing then, not a gap).
      *
-     * A slot id is resolved to its zone through `khads.zones` when it is listed there, and
-     * otherwise through the ad server's manifest, so spaces made with `khads:sync` need no
+     * A slot id is resolved to its zone through `psobpsay.zones` when it is listed there, and
+     * otherwise through the ad server's manifest, so spaces made with `psobpsay:sync` need no
      * zone keys in the environment.
      *
      * @return array<string, list<SpaceAd>>
@@ -112,7 +112,7 @@ class KhadsClient
         $keys = [];
         $manifestZones = null;
         // Looked up as one key: slot ids have dots in them, which config() would nest.
-        $zones = (array) config('khads.zones', []);
+        $zones = (array) config('psobpsay.zones', []);
 
         foreach ($slotIds as $slotId) {
             $configured = $zones[$slotId] ?? null;
@@ -132,7 +132,7 @@ class KhadsClient
 
     /**
      * What the ad server knows about this site's inventory: its sites, each space by slot
-     * id, and the template catalogue. Cached for `khads.manifest_seconds`; empty, and not
+     * id, and the template catalogue. Cached for `psobpsay.manifest_seconds`; empty, and not
      * cached, while the ad server cannot be reached or refuses the key.
      *
      * @return array<string, mixed>
@@ -161,7 +161,7 @@ class KhadsClient
             return [];
         }
 
-        Cache::put($this->cacheKey('manifest'), $manifest, max(1, (int) config('khads.manifest_seconds', 300)));
+        Cache::put($this->cacheKey('manifest'), $manifest, max(1, (int) config('psobpsay.manifest_seconds', 300)));
 
         return $manifest;
     }
@@ -209,7 +209,7 @@ class KhadsClient
     }
 
     /**
-     * Create the spaces declared in `khads.spaces` on this site in the ad server. Existing
+     * Create the spaces declared in `psobpsay.spaces` on this site in the ad server. Existing
      * slot ids are left as they are there.
      *
      * @param  array<string, array<string, mixed>>  $spaces  slot id => {template, platform?, max_ads?, name?}
@@ -265,7 +265,7 @@ class KhadsClient
      */
     private function visitor(Request $request): array
     {
-        $header = (string) config('khads.country_header', 'CF-IPCountry');
+        $header = (string) config('psobpsay.country_header', 'CF-IPCountry');
         $restricted = $request->header('Sec-GPC') === '1' || $request->header('DNT') === '1';
 
         return [
@@ -359,8 +359,8 @@ class KhadsClient
 
     private function http(): PendingRequest
     {
-        return Http::baseUrl((string) config('khads.base_url'))
-            ->withToken((string) config('khads.api_key'))
+        return Http::baseUrl((string) config('psobpsay.base_url'))
+            ->withToken((string) config('psobpsay.api_key'))
             ->acceptJson()
             ->connectTimeout($this->connectTimeoutSeconds())
             ->timeout($this->timeoutSeconds());
@@ -374,7 +374,7 @@ class KhadsClient
      */
     private function openCircuit(Throwable $exception, mixed $empty): mixed
     {
-        Cache::add($this->circuitKey(), true, max(1, (int) config('khads.circuit_seconds')));
+        Cache::add($this->circuitKey(), true, max(1, (int) config('psobpsay.circuit_seconds')));
         report($exception);
 
         return $empty;
@@ -405,7 +405,7 @@ class KhadsClient
     }
 
     /**
-     * Read-only operational state for an admin dashboard. Never calls khads.
+     * Read-only operational state for an admin dashboard. Never calls psobpsay.
      *
      * `refusedStatus` is the HTTP status of a refusal in the past hour: 401 for a wrong
      * key, 422 for a request the ad server would not accept. Rotating the key clears it.
@@ -416,7 +416,7 @@ class KhadsClient
     {
         $zones = [];
 
-        foreach ((array) config('khads.zones') as $name => $zone) {
+        foreach ((array) config('psobpsay.zones') as $name => $zone) {
             if (is_string($name) && is_string($zone) && $zone !== '') {
                 $zones[] = $name;
             }
@@ -425,29 +425,29 @@ class KhadsClient
         $refused = Cache::get($this->cacheKey('refused'));
 
         return [
-            'enabled' => (bool) config('khads.enabled'),
-            'configured' => $this->isConfigured() && ($zones !== [] || (array) config('khads.spaces', []) !== []),
+            'enabled' => (bool) config('psobpsay.enabled'),
+            'configured' => $this->isConfigured() && ($zones !== [] || (array) config('psobpsay.spaces', []) !== []),
             'zones' => $zones,
             'circuitOpen' => Cache::has($this->circuitKey()),
             'refusedStatus' => is_numeric($refused) ? (int) $refused : null,
-            'consoleUrl' => $this->httpUrl(config('khads.console_url')),
+            'consoleUrl' => $this->httpUrl(config('psobpsay.console_url')),
         ];
     }
 
     /** Public sign-up destination, or null while the network stays closed. */
     public function advertiserUrl(): ?string
     {
-        if (! config('khads.advertise_enabled')) {
+        if (! config('psobpsay.advertise_enabled')) {
             return null;
         }
 
-        return $this->httpUrl(config('khads.advertiser_url'));
+        return $this->httpUrl(config('psobpsay.advertiser_url'));
     }
 
     /** @internal Public so the budget arithmetic can be tested; not part of the contract. */
     public function timeoutSeconds(): float
     {
-        return max(50, (int) config('khads.timeout_ms')) / 1000;
+        return max(50, (int) config('psobpsay.timeout_ms')) / 1000;
     }
 
     /**
@@ -457,7 +457,7 @@ class KhadsClient
      */
     public function connectTimeoutSeconds(): float
     {
-        return min($this->timeoutSeconds(), max(50, (int) config('khads.connect_timeout_ms')) / 1000);
+        return min($this->timeoutSeconds(), max(50, (int) config('psobpsay.connect_timeout_ms')) / 1000);
     }
 
     /**
@@ -474,14 +474,14 @@ class KhadsClient
 
     private function cacheKey(string $name): string
     {
-        $site = hash('sha256', (string) config('khads.base_url').'|'.(string) config('khads.api_key'));
+        $site = hash('sha256', (string) config('psobpsay.base_url').'|'.(string) config('psobpsay.api_key'));
 
-        return 'khads:'.$site.':'.$name;
+        return 'psobpsay:'.$site.':'.$name;
     }
 
     private function isConfigured(): bool
     {
-        return (bool) config('khads.enabled') && filled(config('khads.base_url')) && filled(config('khads.api_key'));
+        return (bool) config('psobpsay.enabled') && filled(config('psobpsay.base_url')) && filled(config('psobpsay.api_key'));
     }
 
     /**

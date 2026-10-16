@@ -1,11 +1,11 @@
 {
-    "name": "khable/khads-client",
-    "description": "Server-to-server client for the khads ad network: one batched serve call per page, fail-empty, with a Blade card and a React stub.",
+    "name": "khable/psobpsay-client",
+    "description": "Server-to-server client for the psobpsay ad network: one batched serve call per page, fail-empty, with a Blade card and a React stub.",
     "type": "library",
     "license": "MIT",
     "keywords": [
         "laravel",
-        "khads",
+        "psobpsay",
         "ads"
     ],
     "require": {
@@ -23,18 +23,18 @@
     },
     "autoload": {
         "psr-4": {
-            "Khable\\KhadsClient\\": "src/"
+            "Khable\\PsobPsayClient\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Khable\\KhadsClient\\Tests\\": "tests/"
+            "Khable\\PsobPsayClient\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Khable\\KhadsClient\\KhadsClientServiceProvider"
+                "Khable\\PsobPsayClient\\PsobPsayClientServiceProvider"
             ]
         }
     },

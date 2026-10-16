@@ -5,13 +5,13 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
-use Khable\KhadsClient\KhadsClient;
+use Khable\PsobPsayClient\PsobPsayClient;
 
 const PAGE = 'https://site.test/';
 
-function client(): KhadsClient
+function client(): PsobPsayClient
 {
-    return app(KhadsClient::class);
+    return app(PsobPsayClient::class);
 }
 
 test('the client is one instance per application', function () {
@@ -19,7 +19,7 @@ test('the client is one instance per application', function () {
 });
 
 test('every placement is asked for in one call, keyed to the site, and only rendered fields cross over', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['https://ads.test/api/v1/serve' => Http::response([
         'slots' => [
             'feed' => ['ad' => servedAd('cr_feed'), 'no_fill' => false],
@@ -27,7 +27,7 @@ test('every placement is asked for in one call, keyed to the site, and only rend
         ],
     ])]);
 
-    $slots = client()->slots(PAGE, config('khads.zones'), 'KH');
+    $slots = client()->slots(PAGE, config('psobpsay.zones'), 'KH');
 
     expect($slots['sidebar'])->toBeNull()
         ->and($slots['feed'])->toBe([
@@ -50,7 +50,7 @@ test('every placement is asked for in one call, keyed to the site, and only rend
 });
 
 test('an unknown country is left out rather than sent empty', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake();
 
     client()->slots(PAGE, ['feed' => 'zn_feed']);
@@ -59,7 +59,7 @@ test('an unknown country is left out rather than sent empty', function () {
 });
 
 test('slotsFor resolves placements by name and reads the country from the edge header', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake();
     $request = Illuminate\Http\Request::create(PAGE, 'GET', server: ['HTTP_CF_IPCOUNTRY' => 'KH']);
 
@@ -71,7 +71,7 @@ test('slotsFor resolves placements by name and reads the country from the edge h
 });
 
 test('an edge placeholder for the country is dropped rather than failing the page', function (?string $header, ?string $sent) {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake();
 
     // The ad server refuses anything that is not two letters, which the client would
@@ -88,11 +88,11 @@ test('an edge placeholder for the country is dropped rather than failing the pag
 ]);
 
 test('a visitor who asks not to be tracked is served as restricted and their caps are not sent', function (array $server) {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake();
     $capped = 'cmp_'.str_repeat('a', 32);
 
-    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: [...$server, 'HTTP_X_KHADS_SEEN' => $capped]), PAGE, 'feed');
+    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: [...$server, 'HTTP_X_PSOBPSAY_SEEN' => $capped]), PAGE, 'feed');
 
     Http::assertSent(fn (Request $r): bool => $r['privacy'] === 'restricted' && ! array_key_exists('seen', $r->data()));
 })->with([
@@ -101,7 +101,7 @@ test('a visitor who asks not to be tracked is served as restricted and their cap
 ]);
 
 test('campaigns the visitor has capped out on are forwarded so the daily cap holds', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake();
     $first = 'cmp_'.str_repeat('a', 32);
     $second = 'cmp_'.str_repeat('b', 32);
@@ -109,23 +109,23 @@ test('campaigns the visitor has capped out on are forwarded so the daily cap hol
     // The header comes from the browser: one malformed entry would have the ad server
     // refuse the whole page, so only well-formed keys go on, once each.
     $header = "{$first}, not-a-campaign,{$second},{$first},cmp_SHOUTING".str_repeat('A', 28);
-    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: ['HTTP_X_KHADS_SEEN' => $header]), PAGE, 'feed');
+    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: ['HTTP_X_PSOBPSAY_SEEN' => $header]), PAGE, 'feed');
 
     Http::assertSent(fn (Request $r): bool => $r['privacy'] === 'standard' && $r['seen'] === "{$first},{$second}");
 });
 
 test('no more capped campaigns are forwarded than the ad server accepts', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake();
     $keys = array_map(fn (int $i): string => 'cmp_'.str_pad((string) $i, 32, '0', STR_PAD_LEFT), range(1, 60));
 
-    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: ['HTTP_X_KHADS_SEEN' => implode(',', $keys)]), PAGE, 'feed');
+    client()->slotsFor(Illuminate\Http\Request::create(PAGE, 'GET', server: ['HTTP_X_PSOBPSAY_SEEN' => implode(',', $keys)]), PAGE, 'feed');
 
     Http::assertSent(fn (Request $r): bool => $r['seen'] === implode(',', array_slice($keys, -50)));
 });
 
 test('an ad carries its frequency cap to the card only when it is well formed', function (mixed $frequency, ?array $shaped) {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['*' => Http::response(['slots' => ['feed' => ['ad' => [...servedAd('cr_capped'), 'frequency' => $frequency]]]])]);
 
     expect(client()->slots(PAGE, ['feed' => 'zn_feed'])['feed']['frequency'])->toBe($shaped);
@@ -138,8 +138,8 @@ test('an ad carries its frequency cap to the card only when it is well formed', 
 ]);
 
 test('the country header is the site\'s to choose', function () {
-    khadsConfigured();
-    config()->set('khads.country_header', 'X-Country');
+    psobpsayConfigured();
+    config()->set('psobpsay.country_header', 'X-Country');
     Http::fake();
     $request = Illuminate\Http\Request::create(PAGE, 'GET', server: ['HTTP_X_COUNTRY' => 'TH', 'HTTP_CF_IPCOUNTRY' => 'KH']);
 
@@ -149,24 +149,24 @@ test('the country header is the site\'s to choose', function () {
 });
 
 test('a failing ad server leaves the slots empty and is left alone until the circuit closes', function (int $status) {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['*' => Http::response('upstream down', $status)]);
 
-    expect(client()->slots(PAGE, config('khads.zones')))->toBe(['feed' => null, 'sidebar' => null])
+    expect(client()->slots(PAGE, config('psobpsay.zones')))->toBe(['feed' => null, 'sidebar' => null])
         ->and(Cache::has(client()->circuitKey()))->toBeTrue();
 
     // One failure is the whole cost of a down ad server: the next page view does not pay it again.
-    client()->slots(PAGE, config('khads.zones'));
+    client()->slots(PAGE, config('psobpsay.zones'));
     Http::assertSentCount(1);
 
     // ...until the window has passed, when it is asked once more.
     $this->travel(61)->seconds();
-    client()->slots(PAGE, config('khads.zones'));
+    client()->slots(PAGE, config('psobpsay.zones'));
     Http::assertSentCount(2);
 })->with(['unavailable' => 503, 'erroring' => 500, 'rate limited' => 429]);
 
 test('a refused request empties only that page and is reported once an hour, not as an outage', function (int $status) {
-    khadsConfigured();
+    psobpsayConfigured();
     Exceptions::fake();
     Http::fake(['*' => Http::response(['message' => 'refused'], $status)]);
 
@@ -185,17 +185,17 @@ test('a refused request empties only that page and is reported once an hour, not
 })->with(['wrong key' => 401, 'invalid request' => 422, 'wrong path' => 404]);
 
 test('a rotated key clears the refusal it replaced', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['*' => Http::response(['message' => 'Unknown API key.'], 401)]);
     client()->slots(PAGE, ['feed' => 'zn_feed']);
 
-    config()->set('khads.api_key', 'pk_'.str_repeat('b', 32));
+    config()->set('psobpsay.api_key', 'pk_'.str_repeat('b', 32));
 
     expect(client()->status()['refusedStatus'])->toBeNull();
 });
 
 test('a host that cannot be reached is reported and opens the circuit like any other failure', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Exceptions::fake();
     Http::fake(fn () => throw new ConnectionException('cURL error 28'));
 
@@ -206,46 +206,46 @@ test('a host that cannot be reached is reported and opens the circuit like any o
 });
 
 test('sites sharing a cache keep their circuits apart', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['*' => Http::response('upstream down', 503)]);
     client()->slots(PAGE, ['feed' => 'zn_feed']);
 
     // A sister site on the same Redis, with its own key, is still asked for ads.
-    config()->set('khads.api_key', 'pk_'.str_repeat('b', 32));
+    config()->set('psobpsay.api_key', 'pk_'.str_repeat('b', 32));
     client()->slots(PAGE, ['feed' => 'zn_feed']);
     Http::assertSentCount(2);
 
     // The first site is still left alone until its own circuit closes.
-    config()->set('khads.api_key', 'pk_'.str_repeat('a', 32));
+    config()->set('psobpsay.api_key', 'pk_'.str_repeat('a', 32));
     client()->slots(PAGE, ['feed' => 'zn_feed']);
     Http::assertSentCount(2);
 });
 
 test('the connect budget never exceeds the whole budget and neither drops below 50ms', function () {
-    khadsConfigured();
+    psobpsayConfigured();
 
-    config()->set('khads.timeout_ms', 500);
-    config()->set('khads.connect_timeout_ms', 900);
+    config()->set('psobpsay.timeout_ms', 500);
+    config()->set('psobpsay.connect_timeout_ms', 900);
     expect(client()->connectTimeoutSeconds())->toBe(0.5)->and(client()->timeoutSeconds())->toBe(0.5);
 
-    config()->set('khads.timeout_ms', 10);
-    config()->set('khads.connect_timeout_ms', 10);
+    config()->set('psobpsay.timeout_ms', 10);
+    config()->set('psobpsay.connect_timeout_ms', 10);
     expect(client()->connectTimeoutSeconds())->toBe(0.05)->and(client()->timeoutSeconds())->toBe(0.05);
 
-    config()->set('khads.timeout_ms', 500);
-    config()->set('khads.connect_timeout_ms', 150);
+    config()->set('psobpsay.timeout_ms', 500);
+    config()->set('psobpsay.connect_timeout_ms', 150);
     expect(client()->connectTimeoutSeconds())->toBe(0.15);
 });
 
 test('an ad missing the URLs that make it countable is dropped', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['*' => Http::response(['slots' => ['feed' => ['ad' => ['id' => 'cr_x', 'format' => 'native', 'headline' => 'No urls']]]])]);
 
-    expect(client()->slots(PAGE, config('khads.zones')))->toBe(['feed' => null, 'sidebar' => null]);
+    expect(client()->slots(PAGE, config('psobpsay.zones')))->toBe(['feed' => null, 'sidebar' => null]);
 });
 
 test('display creatives are dropped instead of rendering as an empty native card', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['*' => Http::response(['slots' => [
         'feed' => ['ad' => [...servedAd('cr_display'), 'format' => 'medium_rectangle']],
     ]])]);
@@ -254,7 +254,7 @@ test('display creatives are dropped instead of rendering as an empty native card
 });
 
 test('each supported native format is accepted', function (string $format) {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['*' => Http::response(['slots' => [
         'feed' => ['ad' => [...servedAd('cr_native'), 'format' => $format]],
     ]])]);
@@ -263,7 +263,7 @@ test('each supported native format is accepted', function (string $format) {
 })->with(['native', 'in_feed', 'text']);
 
 test('a native creative with no renderable content is dropped', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['*' => Http::response(['slots' => [
         'feed' => ['ad' => [
             'id' => 'cr_empty',
@@ -277,8 +277,8 @@ test('a native creative with no renderable content is dropped', function () {
 });
 
 test('an ad whose URLs are not plain http(s) never reaches the page', function () {
-    khadsConfigured();
-    config()->set('khads.zones.post', 'zn_post');
+    psobpsayConfigured();
+    config()->set('psobpsay.zones.post', 'zn_post');
     Http::fake(['*' => Http::response(['slots' => [
         // A poisoned click or impression URL kills the whole ad; a poisoned image only loses the image.
         'feed' => ['ad' => [...servedAd('cr_feed'), 'click_url' => 'javascript:alert(1)']],
@@ -286,7 +286,7 @@ test('an ad whose URLs are not plain http(s) never reaches the page', function (
         'sidebar' => ['ad' => [...servedAd('cr_side'), 'image' => 'data:text/html,x']],
     ]])]);
 
-    $slots = client()->slots(PAGE, config('khads.zones'));
+    $slots = client()->slots(PAGE, config('psobpsay.zones'));
 
     expect($slots['feed'])->toBeNull()
         ->and($slots['post'])->toBeNull()
@@ -295,7 +295,7 @@ test('an ad whose URLs are not plain http(s) never reaches the page', function (
 });
 
 test('long copy is trimmed before it reaches the page', function () {
-    khadsConfigured();
+    psobpsayConfigured();
     Http::fake(['*' => Http::response(['slots' => [
         'feed' => ['ad' => [...servedAd('cr_long'), 'headline' => str_repeat('a', 200), 'body' => '  padded  ']],
     ]])]);
@@ -307,31 +307,31 @@ test('long copy is trimmed before it reaches the page', function () {
 });
 
 test('nothing is asked while ads are off, unconfigured, or a placement has no zone', function () {
-    khadsConfigured();
-    config()->set('khads.zones.sidebar', null);
+    psobpsayConfigured();
+    config()->set('psobpsay.zones.sidebar', null);
     Http::fake();
 
-    expect(client()->slots(PAGE, config('khads.zones')))->toHaveKeys(['feed'])->not->toHaveKey('sidebar');
+    expect(client()->slots(PAGE, config('psobpsay.zones')))->toHaveKeys(['feed'])->not->toHaveKey('sidebar');
     Http::assertSentCount(1);
 
-    config()->set('khads.enabled', false);
-    expect(client()->slots(PAGE, config('khads.zones')))->toBe(['feed' => null]);
+    config()->set('psobpsay.enabled', false);
+    expect(client()->slots(PAGE, config('psobpsay.zones')))->toBe(['feed' => null]);
 
-    config()->set('khads.enabled', true);
-    config()->set('khads.api_key', null);
-    expect(client()->slots(PAGE, config('khads.zones')))->toBe(['feed' => null]);
+    config()->set('psobpsay.enabled', true);
+    config()->set('psobpsay.api_key', null);
+    expect(client()->slots(PAGE, config('psobpsay.zones')))->toBe(['feed' => null]);
 
-    config()->set('khads.api_key', 'pk_x');
-    config()->set('khads.base_url', '');
-    expect(client()->slots(PAGE, config('khads.zones')))->toBe(['feed' => null]);
+    config()->set('psobpsay.api_key', 'pk_x');
+    config()->set('psobpsay.base_url', '');
+    expect(client()->slots(PAGE, config('psobpsay.zones')))->toBe(['feed' => null]);
 
     Http::assertSentCount(1);
 });
 
 test('status reports configuration and the circuit without asking the ad server', function () {
-    khadsConfigured();
-    config()->set('khads.zones', ['feed' => 'zn_feed', 'sidebar' => null, 'post' => '']);
-    config()->set('khads.console_url', 'https://ads.test/publisher');
+    psobpsayConfigured();
+    config()->set('psobpsay.zones', ['feed' => 'zn_feed', 'sidebar' => null, 'post' => '']);
+    config()->set('psobpsay.console_url', 'https://ads.test/publisher');
     Cache::put(client()->circuitKey(), true, 60);
     Http::fake();
 
@@ -344,23 +344,23 @@ test('status reports configuration and the circuit without asking the ad server'
         'consoleUrl' => 'https://ads.test/publisher',
     ]);
 
-    config()->set('khads.zones', []);
-    config()->set('khads.console_url', 'javascript:alert(1)');
+    config()->set('psobpsay.zones', []);
+    config()->set('psobpsay.console_url', 'javascript:alert(1)');
     expect(client()->status())->toMatchArray(['configured' => false, 'zones' => [], 'consoleUrl' => null]);
 
     Http::assertNothingSent();
 });
 
 test('the advertiser link exists only while acquisition is open and the destination is safe', function () {
-    config()->set('khads.advertise_enabled', false);
-    config()->set('khads.advertiser_url', 'https://ads.test/register');
+    config()->set('psobpsay.advertise_enabled', false);
+    config()->set('psobpsay.advertiser_url', 'https://ads.test/register');
     expect(client()->advertiserUrl())->toBeNull();
 
-    config()->set('khads.advertise_enabled', true);
+    config()->set('psobpsay.advertise_enabled', true);
     expect(client()->advertiserUrl())->toBe('https://ads.test/register');
 
     foreach (['', 'javascript:alert(1)', 'not a url'] as $unsafe) {
-        config()->set('khads.advertiser_url', $unsafe);
+        config()->set('psobpsay.advertiser_url', $unsafe);
         expect(client()->advertiserUrl())->toBeNull();
     }
 });

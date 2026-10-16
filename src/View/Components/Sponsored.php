@@ -1,13 +1,13 @@
 <?php
 
-namespace Khable\KhadsClient\View\Components;
+namespace Khable\PsobPsayClient\View\Components;
 
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
-use Khable\KhadsClient\KhadsClient;
+use Khable\PsobPsayClient\PsobPsayClient;
 
 /**
- * A sponsored card for Blade sites: `<x-khads::sponsored :ad="$slots['feed'] ?? null" />`.
+ * A sponsored card for Blade sites: `<x-psobpsay::sponsored :ad="$slots['feed'] ?? null" />`.
  *
  * Renders nothing for an empty slot, so a page can drop it in unguarded. The whole
  * card is one outbound link through the ad server's click redirect, and the impression
@@ -17,7 +17,7 @@ use Khable\KhadsClient\KhadsClient;
 class Sponsored extends Component
 {
     /**
-     * @param  array<string, mixed>|null  $ad  one shaped slot from {@see KhadsClient::slotsFor()}
+     * @param  array<string, mixed>|null  $ad  one shaped slot from {@see PsobPsayClient::slotsFor()}
      * @param  string|null  $nonce  the page's CSP nonce, when scripts need one
      */
     public function __construct(
@@ -34,6 +34,6 @@ class Sponsored extends Component
 
     public function render(): View
     {
-        return view('khads::components.sponsored');
+        return view('psobpsay::components.sponsored');
     }
 }

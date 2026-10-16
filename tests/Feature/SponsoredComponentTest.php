@@ -20,7 +20,7 @@ function shapedAd(array $overrides = []): array
 
 function renderCard(?array $ad, string $extra = ''): string
 {
-    return Blade::render('<x-khads::sponsored :ad="$ad" '.$extra.' />', ['ad' => $ad]);
+    return Blade::render('<x-psobpsay::sponsored :ad="$ad" '.$extra.' />', ['ad' => $ad]);
 }
 
 test('the card is one sponsored link with the beacon and the creative on it', function () {
@@ -30,7 +30,7 @@ test('the card is one sponsored link with the beacon and the creative on it', fu
         ->toContain('href="https://ads.test/api/v1/click/cr_feed"')
         ->toContain('target="_blank"')
         ->toContain('rel="sponsored nofollow noopener"')
-        ->toContain('data-khads-impression="https://ads.test/api/v1/imp/cr_feed.gif"')
+        ->toContain('data-psobpsay-impression="https://ads.test/api/v1/imp/cr_feed.gif"')
         ->toContain('data-ad-id="cr_feed"')
         ->toContain('src="https://cdn.test/a.png"')
         ->toContain('>Brand<')
@@ -45,7 +45,7 @@ test('the card is one sponsored link with the beacon and the creative on it', fu
 test('the new-tab hint is read out even without a call to action, and the image is optional', function () {
     $html = renderCard(shapedAd(['cta' => null, 'image' => null]));
 
-    expect($html)->toContain('(opens in a new tab)')->not->toContain('<img')->not->toContain('khads-ad__cta');
+    expect($html)->toContain('(opens in a new tab)')->not->toContain('<img')->not->toContain('psobpsay-ad__cta');
 });
 
 test('an empty slot renders nothing at all', function () {
@@ -59,7 +59,7 @@ test('copy is escaped', function () {
 
 test('the beacon script is emitted once per page and carries the nonce it is given', function () {
     $html = Blade::render(
-        '<x-khads::sponsored :ad="$first" nonce="abc" /><x-khads::sponsored :ad="$second" />',
+        '<x-psobpsay::sponsored :ad="$first" nonce="abc" /><x-psobpsay::sponsored :ad="$second" />',
         ['first' => shapedAd(), 'second' => shapedAd(['id' => 'cr_two'])],
     );
 

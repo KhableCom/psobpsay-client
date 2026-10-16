@@ -7,7 +7,7 @@ return [
     | Sponsored Slots
     |--------------------------------------------------------------------------
     |
-    | Ads come from a separate ad server (khads) over its server-to-server API.
+    | Ads come from a separate ad server (psobpsay) over its server-to-server API.
     | This site is a publisher there: the site is verified and each placement
     | on this side is a zone on that side. Nothing here runs unless enabled and
     | a key is set, and a failing ad server never fails a page — the slot
@@ -28,7 +28,7 @@ return [
      * deferred prop, this budget is spent on a follow-up request after the page
      * has already drawn — nothing the reader is looking at waits on it, which is
      * why it is not the sub-150ms a render-blocking call would deserve. Measured
-     * against a local khads, being turned away for a bad key already costs about
+     * against a local psobpsay, being turned away for a bad key already costs about
      * 100ms before any auction runs, so a budget near that leaves a real serve no
      * room: the circuit trips on every view and no slot ever fills.
      */
@@ -62,7 +62,7 @@ return [
 
     /**
      * Zone public keys, one per placement. The placement names are this site's
-     * own — they are what `KhadsClient::slotsFor()` is asked for and the keys the
+     * own — they are what `PsobPsayClient::slotsFor()` is asked for and the keys the
      * page receives back — and each maps to a zone created for this site in the
      * ad console. An empty value disables that placement.
      *
@@ -78,8 +78,8 @@ return [
     | Spaces
     |--------------------------------------------------------------------------
     |
-    | Templated spaces, by this site's own slot ids. `php artisan khads:sync`
-    | creates any that are missing in the ad console, and `KhadsClient::spaces()`
+    | Templated spaces, by this site's own slot ids. `php artisan psobpsay:sync`
+    | creates any that are missing in the ad console, and `PsobPsayClient::spaces()`
     | finds each one's zone through the ad server's manifest, so none of them
     | needs a zone key here. A slot id also listed under `zones` uses that key.
     |

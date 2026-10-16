@@ -1,26 +1,26 @@
-<article {{ $attributes->class(['khads-ad']) }} data-ad-id="{{ $ad['id'] ?? '' }}" data-khads-impression="{{ $ad['impressionUrl'] }}">
-    <a class="khads-ad__link" href="{{ $ad['clickUrl'] }}" target="_blank" rel="sponsored nofollow noopener">
+<article {{ $attributes->class(['psobpsay-ad']) }} data-ad-id="{{ $ad['id'] ?? '' }}" data-psobpsay-impression="{{ $ad['impressionUrl'] }}">
+    <a class="psobpsay-ad__link" href="{{ $ad['clickUrl'] }}" target="_blank" rel="sponsored nofollow noopener">
         @if (! empty($ad['image']))
             {{-- The ad server checks a creative image for size, not shape: keep a fixed box and contain the image. --}}
-            <img class="khads-ad__image" src="{{ $ad['image'] }}" alt="" width="1200" height="630" loading="lazy">
+            <img class="psobpsay-ad__image" src="{{ $ad['image'] }}" alt="" width="1200" height="630" loading="lazy">
         @endif
-        <div class="khads-ad__content">
-            <div class="khads-ad__meta">
+        <div class="psobpsay-ad__content">
+            <div class="psobpsay-ad__meta">
                 @if (! empty($ad['brand']))
-                    <span class="khads-ad__brand">{{ $ad['brand'] }}</span>
+                    <span class="psobpsay-ad__brand">{{ $ad['brand'] }}</span>
                 @endif
-                <span class="khads-ad__label">{{ $label }}</span>
+                <span class="psobpsay-ad__label">{{ $label }}</span>
             </div>
             @if (! empty($ad['headline']))
-                <p class="khads-ad__headline">{{ $ad['headline'] }}</p>
+                <p class="psobpsay-ad__headline">{{ $ad['headline'] }}</p>
             @endif
             @if (! empty($ad['body']))
-                <p class="khads-ad__body">{{ $ad['body'] }}</p>
+                <p class="psobpsay-ad__body">{{ $ad['body'] }}</p>
             @endif
             @if (! empty($ad['cta']))
-                <p class="khads-ad__cta">{{ $ad['cta'] }}</p>
+                <p class="psobpsay-ad__cta">{{ $ad['cta'] }}</p>
             @endif
-            <span class="khads-ad__hint" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">{{ $newTabHint }}</span>
+            <span class="psobpsay-ad__hint" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">{{ $newTabHint }}</span>
         </div>
     </a>
 </article>
@@ -29,10 +29,10 @@
 /* Counts an impression the way the ad server bills it: half the card on screen for a full second, once. */
 (function () {
     if (typeof IntersectionObserver === 'undefined') { return; }
-    var attribute = 'data-khads-impression';
+    var attribute = 'data-psobpsay-impression';
     function watch(element) {
-        if (element.__khads) { return; }
-        element.__khads = true;
+        if (element.__psobpsay) { return; }
+        element.__psobpsay = true;
         var url = element.getAttribute(attribute), timer = null, sent = false, entry = null;
         function viewable() {
             return !!entry && entry.isIntersecting && entry.intersectionRatio >= 0.5 && document.visibilityState === 'visible';

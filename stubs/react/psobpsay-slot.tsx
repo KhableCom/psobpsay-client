@@ -33,16 +33,16 @@ const skeletons: Record<string, { aspectRatio?: string; height?: number }> = {
 export type SpaceRenderer = (ad: SpaceAd, label: string) => ReactNode;
 
 /**
- * A templated space: `<KhadsSlot id="web.grid.card" template="card_landscape" ads={sponsored} />`.
+ * A templated space: `<PsobPsaySlot id="web.grid.card" template="card_landscape" ads={sponsored} />`.
  *
- * Published by khable/khads-client. Draws a skeleton while the deferred prop loads, nothing
+ * Published by khable/psobpsay-client. Draws a skeleton while the deferred prop loads, nothing
  * at all when the space went unfilled, and otherwise each ad through the renderer given
  * for its template (your design system's card), falling back to a plain card. Every ad is
  * framed the same way whatever draws it: one link through the click redirect with
  * `rel="sponsored nofollow noopener"`, a new-tab hint that is always read out, and its own
  * viewable-impression count. A renderer only draws the inside and must show the label.
  */
-export function KhadsSlot({
+export function PsobPsaySlot({
     id,
     template,
     ads,
@@ -65,7 +65,7 @@ export function KhadsSlot({
         return (
             <div
                 aria-hidden="true"
-                data-khads-slot={id}
+                data-psobpsay-slot={id}
                 className={`bg-current/5 animate-pulse rounded-md ${className ?? ''}`}
                 style={skeletons[template] ?? { height: 120 }}
             />
@@ -79,7 +79,7 @@ export function KhadsSlot({
     const render = renderers[template] ?? defaultRenderer;
 
     return (
-        <div data-khads-slot={id} className={className}>
+        <div data-psobpsay-slot={id} className={className}>
             {slotAds.map((ad) => (
                 <SpaceAdFrame key={ad.id} ad={ad} newTabHint={newTabHint}>
                     {render(ad, labels[ad.disclosure] ?? labels.sponsored)}

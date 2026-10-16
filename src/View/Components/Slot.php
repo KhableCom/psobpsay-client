@@ -1,16 +1,16 @@
 <?php
 
-namespace Khable\KhadsClient\View\Components;
+namespace Khable\PsobPsayClient\View\Components;
 
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
-use Khable\KhadsClient\KhadsClient;
+use Khable\PsobPsayClient\PsobPsayClient;
 
 /**
  * A templated space for Blade sites:
- * `<x-khads::slot id="web.grid.card" template="card_landscape" :ads="$sponsored" />`.
+ * `<x-psobpsay::slot id="web.grid.card" template="card_landscape" :ads="$sponsored" />`.
  *
- * Takes the whole answer of {@see KhadsClient::spaces()} and draws its own slot, every ad
+ * Takes the whole answer of {@see PsobPsayClient::spaces()} and draws its own slot, every ad
  * as a sponsored card labelled with the disclosure word the space was served with. An
  * unfilled space renders nothing, so the layout closes up around it. Publish the views to
  * give each template its own look.
@@ -58,6 +58,6 @@ class Slot extends Component
 
     public function render(): View
     {
-        return view('khads::components.slot');
+        return view('psobpsay::components.slot');
     }
 }

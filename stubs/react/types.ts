@@ -13,7 +13,7 @@ export type SponsoredAd = {
 };
 
 /**
- * The placements a page asked for, keyed by the names in `config/khads.php`.
+ * The placements a page asked for, keyed by the names in `config/psobpsay.php`.
  * Narrow this to your own placement names once they are settled.
  */
 export type SponsoredSlots = Record<string, SponsoredAd | null | undefined>;
@@ -46,7 +46,7 @@ export type SpaceAd = SponsoredAd & {
 };
 
 /**
- * `KhadsClient::spaces()` by slot id. Undefined while the deferred prop is loading; an
+ * `PsobPsayClient::spaces()` by slot id. Undefined while the deferred prop is loading; an
  * empty list is a space that went unfilled.
  */
 export type SponsoredSpaces = Record<string, SpaceAd[] | undefined>;

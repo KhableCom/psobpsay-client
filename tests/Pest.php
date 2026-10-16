@@ -1,16 +1,16 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
-use Khable\KhadsClient\Tests\TestCase;
+use Khable\PsobPsayClient\Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->beforeEach(fn () => Http::preventStrayRequests())
     ->in('Feature');
 
 /** Enough to serve: the switch on, a server, a key, and two placements. */
-function khadsConfigured(): void
+function psobpsayConfigured(): void
 {
-    config()->set('khads', [
+    config()->set('psobpsay', [
         'enabled' => true,
         'base_url' => 'https://ads.test',
         'api_key' => 'pk_'.str_repeat('a', 32),

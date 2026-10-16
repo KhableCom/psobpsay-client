@@ -2,16 +2,16 @@ import { http } from '@inertiajs/react';
 import type { SponsoredAd } from './types';
 
 /**
- * Frequency caps kept the way the khads tag keeps them: in this site's own storage, as
+ * Frequency caps kept the way the psobpsay tag keeps them: in this site's own storage, as
  * today's count per campaign, and sent back only as the list of campaigns already
  * capped out. Nothing that identifies the visitor leaves the browser, and a visitor who
  * sends Global Privacy Control or Do Not Track is not counted at all.
  *
- * Published by khable/khads-client. Keep this file as published: the storage format is
- * shared with the khads tag, so a site running both counts one cap, not two.
+ * Published by khable/psobpsay-client. Keep this file as published: the storage format is
+ * shared with the psobpsay tag, so a site running both counts one cap, not two.
  */
 const STORE = 'kh_ad_freq';
-const SEEN_HEADER = 'X-Khads-Seen';
+const SEEN_HEADER = 'X-PsobPsay-Seen';
 
 type Caps = Record<string, { d: string; n: number; c: number }>;
 
@@ -79,7 +79,7 @@ export function cappedCampaigns(): string[] {
 /**
  * Call once where the Inertia app is created. Every Inertia request, including the
  * deferred one that loads the ads, then names the campaigns this visitor has capped out
- * on, and `KhadsClient::slotsFor()` passes them to khads. Returns a function that stops it.
+ * on, and `PsobPsayClient::slotsFor()` passes them to psobpsay. Returns a function that stops it.
  */
 export function forwardCappedCampaigns(): () => void {
     return http.onRequest((config) => {

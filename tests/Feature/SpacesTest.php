@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
-use Khable\KhadsClient\KhadsClient;
+use Khable\PsobPsayClient\PsobPsayClient;
 
 /** @return array<string, mixed> */
 function manifestBody(): array
@@ -44,8 +44,8 @@ function pageRequest(string $url = 'https://www.site.test/events?page=2'): Illum
 }
 
 beforeEach(function () {
-    khadsConfigured();
-    config()->set('khads.zones', []);
+    psobpsayConfigured();
+    config()->set('psobpsay.zones', []);
 });
 
 test('spaces are addressed by slot id, resolved through the manifest for the page\'s own site', function () {
@@ -57,7 +57,7 @@ test('spaces are addressed by slot id, resolved through the manifest for the pag
         ]]),
     ]);
 
-    $spaces = app(KhadsClient::class)->spaces(pageRequest(), 'web.home.rail', 'web.grid.card', 'web.paused', 'web.unknown');
+    $spaces = app(PsobPsayClient::class)->spaces(pageRequest(), 'web.home.rail', 'web.grid.card', 'web.paused', 'web.unknown');
 
     expect(array_keys($spaces))->toBe(['web.home.rail', 'web.grid.card', 'web.paused', 'web.unknown'])
         ->and(array_column($spaces['web.home.rail'], 'id'))->toBe(['cr_a', 'cr_b'])
@@ -74,25 +74,25 @@ test('spaces are addressed by slot id, resolved through the manifest for the pag
     // are asked for: another site's zone of the same slot id would earn for the wrong page.
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/api/v1/serve')
         && $request['page'] === 'https://www.site.test/events'
-        && $request['slots'] === [['id' => 'web.home.rail', 'zone' => 'zn_rail', 'accepts' => ['native', 'in_feed', 'text', ...KhadsClient::SupportedTemplates]], ['id' => 'web.grid.card', 'zone' => 'zn_card', 'accepts' => ['native', 'in_feed', 'text', ...KhadsClient::SupportedTemplates]]]);
+        && $request['slots'] === [['id' => 'web.home.rail', 'zone' => 'zn_rail', 'accepts' => ['native', 'in_feed', 'text', ...PsobPsayClient::SupportedTemplates]], ['id' => 'web.grid.card', 'zone' => 'zn_card', 'accepts' => ['native', 'in_feed', 'text', ...PsobPsayClient::SupportedTemplates]]]);
 
     // The manifest is read once and kept, so a page view costs one serve call.
-    app(KhadsClient::class)->spaces(pageRequest(), 'web.home.rail');
+    app(PsobPsayClient::class)->spaces(pageRequest(), 'web.home.rail');
     Http::assertSentCount(3);
 });
 
-test('a slot id listed in khads.zones uses that key without reading the manifest', function () {
-    config()->set('khads.zones', ['web.grid.card' => 'zn_pinned']);
+test('a slot id listed in psobpsay.zones uses that key without reading the manifest', function () {
+    config()->set('psobpsay.zones', ['web.grid.card' => 'zn_pinned']);
     Http::fake(['https://ads.test/api/v1/serve' => Http::response(['slots' => []])]);
 
-    app(KhadsClient::class)->spaces(pageRequest(), 'web.grid.card');
+    app(PsobPsayClient::class)->spaces(pageRequest(), 'web.grid.card');
 
     Http::assertSentCount(1);
-    Http::assertSent(fn (Request $request): bool => $request['slots'] === [['id' => 'web.grid.card', 'zone' => 'zn_pinned', 'accepts' => ['native', 'in_feed', 'text', ...KhadsClient::SupportedTemplates]]]);
+    Http::assertSent(fn (Request $request): bool => $request['slots'] === [['id' => 'web.grid.card', 'zone' => 'zn_pinned', 'accepts' => ['native', 'in_feed', 'text', ...PsobPsayClient::SupportedTemplates]]]);
 });
 
 test('nothing unsafe in a space ad reaches the page', function () {
-    config()->set('khads.zones', ['s' => 'zn_s']);
+    config()->set('psobpsay.zones', ['s' => 'zn_s']);
     Http::fake(['https://ads.test/api/v1/serve' => Http::response(['slots' => ['s' => ['ads' => [
         spaceAd('cr_a', [
             'disclosure' => 'totally-organic',
@@ -108,7 +108,7 @@ test('nothing unsafe in a space ad reaches the page', function () {
         spaceAd('cr_b', ['click_url' => 'javascript:alert(1)']),
     ]]]])]);
 
-    $ads = app(KhadsClient::class)->spaces(pageRequest(), 's')['s'];
+    $ads = app(PsobPsayClient::class)->spaces(pageRequest(), 's')['s'];
 
     // An advertiser cannot choose how the space labels them, and a bad URL in one crop
     // drops that crop, not the whole ad.
@@ -122,12 +122,12 @@ test('nothing unsafe in a space ad reaches the page', function () {
 });
 
 test('an ad server that answers only `ad` still fills a one-ad space', function () {
-    config()->set('khads.zones', ['s' => 'zn_s']);
+    config()->set('psobpsay.zones', ['s' => 'zn_s']);
     Http::fake(['https://ads.test/api/v1/serve' => function (Request $request) {
         return Http::response(['slots' => ['s' => ['ad' => in_array('native', $request['slots'][0]['accepts'], true) ? servedAd('cr_old') : null]]]);
     }]);
 
-    $ads = app(KhadsClient::class)->spaces(pageRequest(), 's')['s'];
+    $ads = app(PsobPsayClient::class)->spaces(pageRequest(), 's')['s'];
 
     expect(array_column($ads, 'id'))->toBe(['cr_old'])->and($ads[0]['disclosure'])->toBe('sponsored');
 });
@@ -136,9 +136,9 @@ test('a manifest that cannot be read leaves every space empty and is tried again
     Exceptions::fake();
     Http::fake(['https://ads.test/api/v1/publisher/manifest' => Http::response(['message' => 'Unknown API key.'], 401)]);
 
-    expect(app(KhadsClient::class)->spaces(pageRequest(), 'web.grid.card'))->toBe(['web.grid.card' => []])
-        ->and(app(KhadsClient::class)->manifest())->toBe([])
-        ->and(Cache::has(app(KhadsClient::class)->circuitKey()))->toBeFalse();
+    expect(app(PsobPsayClient::class)->spaces(pageRequest(), 'web.grid.card'))->toBe(['web.grid.card' => []])
+        ->and(app(PsobPsayClient::class)->manifest())->toBe([])
+        ->and(Cache::has(app(PsobPsayClient::class)->circuitKey()))->toBeFalse();
 
     // A refused key is this site's mistake: reported once, never cached as the answer.
     Http::assertSentCount(2);
@@ -149,15 +149,15 @@ test('a manifest request that times out opens the circuit for serving too', func
     Exceptions::fake();
     Http::fake(['https://ads.test/api/v1/publisher/manifest' => Http::failedConnection()]);
 
-    app(KhadsClient::class)->spaces(pageRequest(), 'web.grid.card');
+    app(PsobPsayClient::class)->spaces(pageRequest(), 'web.grid.card');
 
-    expect(Cache::has(app(KhadsClient::class)->circuitKey()))->toBeTrue();
+    expect(Cache::has(app(PsobPsayClient::class)->circuitKey()))->toBeTrue();
     Http::assertSentCount(1);
 });
 
-test('khads:sync creates the declared spaces on this site and says which it left alone', function () {
+test('psobpsay:sync creates the declared spaces on this site and says which it left alone', function () {
     config()->set('app.url', 'https://www.site.test');
-    config()->set('khads.spaces', [
+    config()->set('psobpsay.spaces', [
         'web.grid.card' => ['template' => 'card_landscape'],
         'web.home.rail' => ['template' => 'rail', 'max_ads' => 6],
     ]);
@@ -169,9 +169,9 @@ test('khads:sync creates the declared spaces on this site and says which it left
             'site' => ['zones' => [['slot_id' => 'web.home.rail', 'template' => 'rail', 'max_ads' => 4]]],
         ], 201),
     ]);
-    app(KhadsClient::class)->manifest();
+    app(PsobPsayClient::class)->manifest();
 
-    $this->artisan('khads:sync')
+    $this->artisan('psobpsay:sync')
         ->expectsOutputToContain('web.grid.card')
         ->expectsOutputToContain('left as the console has it')
         ->assertSuccessful();
@@ -185,16 +185,16 @@ test('khads:sync creates the declared spaces on this site and says which it left
         ]);
 
     // The new space must be servable on the next page view, not five minutes later.
-    app(KhadsClient::class)->manifest();
+    app(PsobPsayClient::class)->manifest();
     Http::assertSentCount(3);
 });
 
-test('khads:sync fails loudly when the ad server refuses it', function () {
-    config()->set('khads.spaces', ['web.x' => ['template' => 'banner']]);
-    config()->set('khads.site', 'site.test');
+test('psobpsay:sync fails loudly when the ad server refuses it', function () {
+    config()->set('psobpsay.spaces', ['web.x' => ['template' => 'banner']]);
+    config()->set('psobpsay.site', 'site.test');
     Http::fake(['https://ads.test/api/v1/publisher/zones' => Http::response(['message' => 'The selected spaces.0.template is invalid.'], 422)]);
 
-    $this->artisan('khads:sync')->expectsOutputToContain('422')->assertFailed();
+    $this->artisan('psobpsay:sync')->expectsOutputToContain('422')->assertFailed();
 });
 
 test('the Blade slot draws its own space with the space\'s disclosure, and nothing when unfilled', function () {
@@ -203,16 +203,16 @@ test('the Blade slot draws its own space with the space\'s disclosure, and nothi
         [...spaceAdShaped('cr_b'), 'disclosure' => 'paid'],
     ], 'web.grid.card' => []];
 
-    $html = Blade::render('<x-khads::slot id="web.home.rail" template="rail" :ads="$ads" />', ['ads' => $ads]);
+    $html = Blade::render('<x-psobpsay::slot id="web.home.rail" template="rail" :ads="$ads" />', ['ads' => $ads]);
 
-    expect($html)->toContain('data-khads-slot="web.home.rail"')
-        ->toContain('khads-slot--rail')
+    expect($html)->toContain('data-psobpsay-slot="web.home.rail"')
+        ->toContain('psobpsay-slot--rail')
         ->toContain('data-ad-id="cr_a"')
         ->toContain('data-ad-id="cr_b"')
         ->and(substr_count($html, '>Paid partner<'))->toBe(2)
-        ->and(trim(Blade::render('<x-khads::slot id="web.grid.card" :ads="$ads" />', ['ads' => $ads])))->toBe('')
-        ->and(trim(Blade::render('<x-khads::slot id="web.nowhere" :ads="$ads" />', ['ads' => $ads])))->toBe('')
-        ->and(Blade::render('<x-khads::slot id="web.home.rail" :ads="$ads" :labels="[\'paid\' => \'ដៃគូ\']" />', ['ads' => $ads]))->toContain('ដៃគូ');
+        ->and(trim(Blade::render('<x-psobpsay::slot id="web.grid.card" :ads="$ads" />', ['ads' => $ads])))->toBe('')
+        ->and(trim(Blade::render('<x-psobpsay::slot id="web.nowhere" :ads="$ads" />', ['ads' => $ads])))->toBe('')
+        ->and(Blade::render('<x-psobpsay::slot id="web.home.rail" :ads="$ads" :labels="[\'paid\' => \'ដៃគូ\']" />', ['ads' => $ads]))->toContain('ដៃគូ');
 });
 
 /** @return array<string, mixed> */

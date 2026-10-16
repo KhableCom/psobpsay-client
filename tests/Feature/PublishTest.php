@@ -3,27 +3,27 @@
 use Illuminate\Support\Facades\File;
 
 afterEach(function () {
-    File::delete(config_path('khads.php'));
-    File::deleteDirectory(resource_path('js/components/khads'));
-    File::deleteDirectory(resource_path('views/vendor/khads'));
+    File::delete(config_path('psobpsay.php'));
+    File::deleteDirectory(resource_path('js/components/psobpsay'));
+    File::deleteDirectory(resource_path('views/vendor/psobpsay'));
 });
 
 test('the config publishes under its own name', function () {
-    $this->artisan('vendor:publish', ['--tag' => 'khads-config'])->assertSuccessful();
+    $this->artisan('vendor:publish', ['--tag' => 'psobpsay-config'])->assertSuccessful();
 
-    expect(config_path('khads.php'))->toBeFile();
+    expect(config_path('psobpsay.php'))->toBeFile();
 });
 
 test('the React card publishes with its impression and frequency-cap helpers', function () {
-    $this->artisan('vendor:publish', ['--tag' => 'khads-react'])->assertSuccessful();
+    $this->artisan('vendor:publish', ['--tag' => 'psobpsay-react'])->assertSuccessful();
 
-    foreach (['khads-slot.tsx', 'sponsored-row.tsx', 'use-viewable-impression.ts', 'frequency-caps.ts', 'types.ts'] as $file) {
-        expect(resource_path('js/components/khads/'.$file))->toBeFile();
+    foreach (['psobpsay-slot.tsx', 'sponsored-row.tsx', 'use-viewable-impression.ts', 'frequency-caps.ts', 'types.ts'] as $file) {
+        expect(resource_path('js/components/psobpsay/'.$file))->toBeFile();
     }
 });
 
 test('the Blade view publishes for restyling', function () {
-    $this->artisan('vendor:publish', ['--tag' => 'khads-views'])->assertSuccessful();
+    $this->artisan('vendor:publish', ['--tag' => 'psobpsay-views'])->assertSuccessful();
 
-    expect(resource_path('views/vendor/khads/components/sponsored.blade.php'))->toBeFile();
+    expect(resource_path('views/vendor/psobpsay/components/sponsored.blade.php'))->toBeFile();
 });
