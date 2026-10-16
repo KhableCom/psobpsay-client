@@ -176,3 +176,21 @@ Planned, not yet built; the design lives in psobpsay at
 composer test
 composer lint
 ```
+
+
+### Public page topics
+
+Declare allowed topic keys and values on the publisher site in PsobPsay, then submit public
+page categories explicitly from the host controller:
+
+```php
+$sponsored = $psobpsay->spacesWithContext($request, [
+    'city' => ['phnom-penh'],
+    'category' => ['music'],
+], 'web.grid.card');
+```
+
+Use page metadata only, never email, user IDs, purchase history, or other visitor attributes.
+The client forwards only values declared for the matching site's manifest (up to eight topics
+and five values per topic). Existing `spaces()` callers continue sending no context. Missing
+schema or unavailable manifest means no context is forwarded. GPC/DNT still apply.

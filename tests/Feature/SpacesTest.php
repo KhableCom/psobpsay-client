@@ -230,3 +230,63 @@ function spaceAdShaped(string $id): array
         'frequency' => null,
     ];
 }
+
+test('forwards only declared public page topics and preserves privacy signals', function (string $host) {
+    psobpsayConfigured();
+    $manifest = manifestBody();
+    $manifest['sites'][0]['context_schema'] = ['city' => ['phnom-penh'], 'category' => ['music']];
+    Http::fake([
+        'https://ads.test/api/v1/publisher/manifest' => Http::response($manifest),
+        'https://ads.test/api/v1/serve' => Http::response(['slots' => []]),
+    ]);
+    $request = Illuminate\Http\Request::create('https://'.$host.'/events', server: ['HTTP_SEC_GPC' => '1']);
+    app(PsobPsayClient::class)->spacesWithContext($request, [
+        'city' => ['phnom-penh', 'unknown', 'phnom-penh'],
+        'category' => ['music'],
+        'email' => ['someone@example.com'],
+    ], 'web.grid.card');
+
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://ads.test/api/v1/serve'
+        && $request['context'] === ['city' => ['phnom-penh'], 'category' => ['music']]
+        && $request['privacy'] === 'restricted');
+})->with(['site.test', 'www.site.test']);
+
+test('does not forward topics from an older manifest without a schema', function () {
+    psobpsayConfigured();
+    Http::fake([
+        'https://ads.test/api/v1/publisher/manifest' => Http::response(manifestBody()),
+        'https://ads.test/api/v1/serve' => Http::response(['slots' => []]),
+    ]);
+    app(PsobPsayClient::class)->spacesWithContext(Illuminate\Http\Request::create('https://site.test/events'),
+        ['city' => ['phnom-penh']], 'web.grid.card');
+    Http::assertSent(fn (Request $request): bool => $request->url() === 'https://ads.test/api/v1/serve'
+        && ! array_key_exists('context', $request->data()));
+});
+
+test('bounds context and never borrows a sibling sites schema', function () {
+    psobpsayConfigured();
+    $context = [];
+    foreach (range(1, 9) as $number) {
+        $context['topic-'.$number] = ['one', 'two', 'three', 'four', 'five', 'six'];
+    }
+    $manifest = manifestBody();
+    $manifest['sites'][0]['context_schema'] = $context;
+    $manifest['sites'][] = ['domain' => 'sibling.test', 'context_schema' => ['private-topic' => ['value']], 'zones' => []];
+    Http::fake([
+        'https://ads.test/api/v1/publisher/manifest' => Http::response($manifest),
+        'https://ads.test/api/v1/serve' => Http::response(['slots' => []]),
+    ]);
+    app(PsobPsayClient::class)->spacesWithContext(Illuminate\Http\Request::create('https://site.test/events'),
+        ['private-topic' => ['value'], ...$context], 'web.grid.card');
+    Http::assertSent(function (Request $request): bool {
+        if ($request->url() !== 'https://ads.test/api/v1/serve') {
+            return false;
+        }
+        expect($request['context'])->toHaveCount(8)->not->toHaveKey('private-topic');
+        foreach ($request['context'] as $values) {
+            expect($values)->toHaveCount(5);
+        }
+
+        return true;
+    });
+});

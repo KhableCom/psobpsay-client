@@ -82,10 +82,22 @@ class PsobPsayClient
      */
     public function spaces(Request $request, string ...$slotIds): array
     {
+        return $this->spacesWithContext($request, [], ...$slotIds);
+    }
+
+    /**
+     * Submit public page topics, never visitor attributes. Only values declared in this
+     * site's manifest are forwarded; an unavailable schema sends no context.
+     *
+     * @param  array<string, list<string>>  $context
+     * @return array<string, list<SpaceAd>>
+     */
+    public function spacesWithContext(Request $request, array $context, string ...$slotIds): array
+    {
         $page = $request->url();
         $empty = array_fill_keys($slotIds, []);
         $zones = $this->zoneKeys($page, $slotIds);
-        $answer = $this->serve($page, $zones, ...[...$this->visitor($request), [...self::SupportedFormats, ...self::SupportedTemplates]]);
+        $answer = $this->serve($page, $zones, ...[...$this->visitor($request), [...self::SupportedFormats, ...self::SupportedTemplates], $this->pageContext($page, $context)]);
 
         if ($answer === null) {
             return $empty;
@@ -326,9 +338,10 @@ class PsobPsayClient
      * @param  array<string, string|null>  $slots  slot id => zone public key
      * @param  list<string>  $seen
      * @param  list<string>  $accepts
+     * @param  array<string, list<string>>  $context
      * @return array<string, mixed>|null
      */
-    private function serve(string $page, array $slots, ?string $country, bool $restricted, array $seen, array $accepts = self::SupportedFormats): ?array
+    private function serve(string $page, array $slots, ?string $country, bool $restricted, array $seen, array $accepts = self::SupportedFormats, array $context = []): ?array
     {
         $slots = array_filter($slots, fn (?string $zone): bool => filled($zone));
 
@@ -343,6 +356,7 @@ class PsobPsayClient
                     'slots' => collect($slots)->map(fn (string $zone, string $id): array => ['id' => $id, 'zone' => $zone, 'accepts' => $accepts])->values()->all(),
                     'country' => $country,
                     'privacy' => $restricted ? 'restricted' : 'standard',
+                    'context' => $context,
                     'seen' => $restricted ? null : implode(',', $seen),
                 ]))
                 ->throw();
@@ -355,6 +369,50 @@ class PsobPsayClient
         $answer = $response->json('slots');
 
         return is_array($answer) ? $answer : null;
+    }
+
+    /**
+     * @param  array<string, list<string>>  $context
+     * @return array<string, list<string>>
+     */
+    private function pageContext(string $page, array $context): array
+    {
+        if ($context === []) {
+            return [];
+        }
+
+        $host = strtolower((string) parse_url($page, PHP_URL_HOST));
+        $site = collect($this->manifest()['sites'] ?? [])->first(
+            function ($site) use ($host): bool {
+                $domain = is_array($site) && is_string($site['domain'] ?? null) ? strtolower($site['domain']) : null;
+
+                return $domain !== null && ($host === $domain || $host === 'www.'.$domain);
+            },
+        );
+        $schema = is_array($site['context_schema'] ?? null) ? $site['context_schema'] : [];
+        $safe = [];
+        $slug = '/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/';
+
+        foreach ($context as $key => $values) {
+            if (count($safe) >= 8) {
+                break;
+            }
+
+            if (! is_string($key) || strlen($key) > 40 || preg_match($slug, $key) !== 1
+                || ! is_array($values) || ! is_array($schema[$key] ?? null)) {
+                continue;
+            }
+
+            $allowed = array_values(array_unique(array_filter($values, fn ($value): bool => is_string($value)
+                && strlen($value) <= 40 && preg_match($slug, $value) === 1
+                && in_array($value, $schema[$key], true))));
+
+            if ($allowed !== []) {
+                $safe[$key] = array_slice($allowed, 0, 5);
+            }
+        }
+
+        return $safe;
     }
 
     private function http(): PendingRequest
