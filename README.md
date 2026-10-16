@@ -4,9 +4,11 @@ Server-to-server client for the psobpsay ad network, for Laravel sites
 that are publishers there. One batched call per page view, fail-empty, with a
 circuit breaker, a strict field whitelist, and a card for Blade or React.
 
-The full publisher guide — console onboarding, the API contract, local
-development, troubleshooting — lives in psobpsay:
-`docs/ads-network/publisher-integration.md`. This file is only the install.
+Source: [KhableCom/psobpsay-client](https://github.com/KhableCom/psobpsay-client), public,
+with development on `main`. The main application repository is private; this README provides
+public installation guidance. Source publication does not establish a tagged package release
+or a live serving endpoint. Internal maintainers can find the complete publisher guide at
+`docs/ads-network/publisher-integration.md` in the main repository.
 
 ## Install
 
@@ -156,19 +158,41 @@ Creative images load from the serving host, so it belongs in `img-src`
 (`https:` already covers it if you allow that). Click and impression URLs are
 plain links and an image beacon; no script is loaded from the ad server.
 
-## Roadmap
+## Implemented capabilities and remaining work
 
-Planned, not yet built; the design lives in psobpsay at
-`docs/ads-network/production-readiness-plan.md`, Phase 7b:
+Implemented: `manifest()`, `report()`, `syncSpaces()`, `creatives()`, `block()`,
+`psobpsay:sync`, `psobpsay:check`, local `status()`, remote `inspect()` / `diagnostics()`,
+shared `SiteMatcher` + `SpaceDiagnostics`, optional admin dashboard, and distinct web
+renderers for `card_landscape`, `card_portrait`, `row_compact`, `bar_logo`, `rail`,
+`logo_grid`, `hero_cobrand`, and `reward` (React + Blade). Promo copy controls sit outside
+the billable click link. Mobile-only catalogue templates (`story_video`, `interstitial`) and
+`promoted_content` stay out of `SupportedTemplates` until their web path exists.
 
-- `report()` against psobpsay' publisher API, fail-empty like `slots()`.
-- `php artisan psobpsay:check` to fail a deploy on a wrong key, a missing or inactive
-  zone, a `slot_id` used in code but unknown to psobpsay, a site that cannot serve, or a
-  zone format this client cannot render.
-- A publishable admin dashboard (`--tag=psobpsay-dashboard`): spaces with a "Get code"
-  sheet, analytics, what is showing now, and a setup checklist.
-- Each slot tells psobpsay which space templates it can render, and empty answers carry a reason.
-- The hide / report / why-this-ad menu on each space ad.
+Remaining improvements:
+
+- Browser-test renderers (reduced-motion, keyboard) and hide/report/why-this-ad UX (P5).
+- Verify clean installation into supported Laravel hosts, CI and package release constraints
+  before creating a release tag.
+
+The internal execution plan is `docs/ads-network/launch-implementation-plan.md`; these public
+notes summarize the client work without requiring access to the private repository.
+
+## Publisher dashboard
+
+Off by default. Enable only behind the host's admin policy:
+
+```env
+ADS_DASHBOARD_ENABLED=true
+ADS_DASHBOARD_MIDDLEWARE=web,auth,can:viewPsobPsayDashboard
+ADS_DASHBOARD_PREFIX=admin/psobpsay
+```
+
+Publish optional Blade/Inertia stubs with `php artisan vendor:publish --tag=psobpsay-dashboard`.
+Package installation never registers the routes without both `enabled` and non-empty middleware.
+
+`status()` remains local and network-free. Use `inspect()` / `diagnostics()` for remote
+inventory checks (cached manifest age and stale flag included). `psobpsay:check` shares the
+same diagnosis; add `--strict-traffic` when absence of requests in 24 hours must fail CI.
 
 ## Tests
 
@@ -177,8 +201,7 @@ composer test
 composer lint
 ```
 
-
-### Public page topics
+## Public page topics
 
 Declare allowed topic keys and values on the publisher site in PsobPsay, then submit public
 page categories explicitly from the host controller:
@@ -191,6 +214,6 @@ $sponsored = $psobpsay->spacesWithContext($request, [
 ```
 
 Use page metadata only, never email, user IDs, purchase history, or other visitor attributes.
-The client forwards only values declared for the matching site's manifest (up to eight topics
+The client forwards only values declared for the matching site's manifest, including its supported `www` host (up to eight topics
 and five values per topic). Existing `spaces()` callers continue sending no context. Missing
 schema or unavailable manifest means no context is forwarded. GPC/DNT still apply.

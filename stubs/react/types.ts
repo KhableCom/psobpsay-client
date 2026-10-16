@@ -43,6 +43,13 @@ export type SpaceAd = SponsoredAd & {
         durationMs: number | null;
     } | null;
     promo: { code: string; terms: string | null } | null;
+    /** Delivery-minted feedback endpoint; null when unavailable. */
+    feedbackUrl: string | null;
+    /** Safe “why this ad” explanation — never private targeting rules. */
+    why: { advertiser: string | null; reasons: string[] } | null;
+    /** Host-owned content pointer for promoted_content templates. */
+    contentRef: string | null;
+    contentUrl: string | null;
 };
 
 /**

@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\File;
 
 afterEach(function () {
     File::delete(config_path('psobpsay.php'));
+    File::delete(resource_path('js/pages/psobpsay-dashboard.tsx'));
     File::deleteDirectory(resource_path('js/components/psobpsay'));
     File::deleteDirectory(resource_path('views/vendor/psobpsay'));
 });
@@ -17,7 +18,15 @@ test('the config publishes under its own name', function () {
 test('the React card publishes with its impression and frequency-cap helpers', function () {
     $this->artisan('vendor:publish', ['--tag' => 'psobpsay-react'])->assertSuccessful();
 
-    foreach (['psobpsay-slot.tsx', 'sponsored-row.tsx', 'use-viewable-impression.ts', 'frequency-caps.ts', 'types.ts'] as $file) {
+    foreach ([
+        'psobpsay-slot.tsx',
+        'renderers.tsx',
+        'sponsored-row.tsx',
+        'use-viewable-impression.ts',
+        'use-promo-copy.ts',
+        'frequency-caps.ts',
+        'types.ts',
+    ] as $file) {
         expect(resource_path('js/components/psobpsay/'.$file))->toBeFile();
     }
 });
@@ -26,4 +35,11 @@ test('the Blade view publishes for restyling', function () {
     $this->artisan('vendor:publish', ['--tag' => 'psobpsay-views'])->assertSuccessful();
 
     expect(resource_path('views/vendor/psobpsay/components/sponsored.blade.php'))->toBeFile();
+});
+
+test('the dashboard stubs publish behind their own tag', function () {
+    $this->artisan('vendor:publish', ['--tag' => 'psobpsay-dashboard'])->assertSuccessful();
+
+    expect(resource_path('js/pages/psobpsay-dashboard.tsx'))->toBeFile()
+        ->and(resource_path('views/vendor/psobpsay/dashboard/index.blade.php'))->toBeFile();
 });

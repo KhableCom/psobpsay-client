@@ -98,4 +98,24 @@ return [
     /** How long the ad server's manifest of this site's spaces is kept. */
     'manifest_seconds' => (int) env('ADS_MANIFEST_SECONDS', 300),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Publisher dashboard
+    |--------------------------------------------------------------------------
+    |
+    | Off by default. Enabling it registers routes only when middleware is also
+    | configured, so package installation never exposes an unauthenticated
+    | diagnostics surface. Point middleware at the host's admin gate.
+    |
+    */
+
+    'dashboard' => [
+        'enabled' => (bool) env('ADS_DASHBOARD_ENABLED', false),
+        'prefix' => env('ADS_DASHBOARD_PREFIX', 'admin/psobpsay'),
+        'middleware' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('ADS_DASHBOARD_MIDDLEWARE', '')),
+        ))),
+    ],
+
 ];

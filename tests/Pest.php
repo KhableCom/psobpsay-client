@@ -1,11 +1,16 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
+use Khable\PsobPsayClient\Tests\DashboardTestCase;
 use Khable\PsobPsayClient\Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->beforeEach(fn () => Http::preventStrayRequests())
     ->in('Feature');
+
+pest()->extend(DashboardTestCase::class)
+    ->beforeEach(fn () => Http::preventStrayRequests())
+    ->in('Dashboard');
 
 /** Enough to serve: the switch on, a server, a key, and two placements. */
 function psobpsayConfigured(): void
@@ -18,6 +23,13 @@ function psobpsayConfigured(): void
         'connect_timeout_ms' => 150,
         'circuit_seconds' => 60,
         'zones' => ['feed' => 'zn_feed', 'sidebar' => 'zn_side'],
+        'spaces' => [],
+        'manifest_seconds' => 300,
+        'dashboard' => [
+            'enabled' => false,
+            'prefix' => 'admin/psobpsay',
+            'middleware' => [],
+        ],
     ]);
 }
 

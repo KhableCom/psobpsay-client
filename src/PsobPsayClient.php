@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Khable\PsobPsayClient\Support\SiteMatcher;
 use Throwable;
 
 /**
@@ -24,8 +25,18 @@ use Throwable;
  * @phpstan-type Frequency array{key: string, cap: int}
  * @phpstan-type SponsoredAd array{id: string, headline: string|null, body: string|null, cta: string|null, brand: string|null, image: string|null, impressionUrl: string, clickUrl: string, frequency: Frequency|null}
  * @phpstan-type Picture array{src: string, srcset: string|null, width: int|null, height: int|null}
- * @phpstan-type SpaceAd array{id: string, headline: string|null, body: string|null, cta: string|null, brand: string|null, image: string|null, impressionUrl: string, clickUrl: string, frequency: Frequency|null, template: string|null, disclosure: string, assets: array<string, Picture>, logo: Picture|null, video: array{src: string, poster: string|null, durationMs: int|null}|null, promo: array{code: string, terms: string|null}|null}
+ * @phpstan-type SpaceAd array{id: string, headline: string|null, body: string|null, cta: string|null, brand: string|null, image: string|null, impressionUrl: string, clickUrl: string, frequency: Frequency|null, template: string|null, disclosure: string, assets: array<string, Picture>, logo: Picture|null, video: array{src: string, poster: string|null, durationMs: int|null}|null, promo: array{code: string, terms: string|null}|null, feedbackUrl: string|null, why: array{advertiser: string|null, reasons: list<string>}|null, contentRef: string|null, contentUrl: string|null}
  * @phpstan-type AdsStatus array{enabled: bool, configured: bool, zones: list<string>, circuitOpen: bool, refusedStatus: int|null, consoleUrl: string|null}
+ * @phpstan-type InspectResult array{
+ *     local: AdsStatus,
+ *     remote: array{
+ *         reachable: bool,
+ *         cached: bool,
+ *         age_seconds: int|null,
+ *         stale: bool,
+ *         diagnostics: array<string, mixed>
+ *     }
+ * }
  */
 class PsobPsayClient
 {
@@ -39,8 +50,14 @@ class PsobPsayClient
     /** @var list<string> */
     private const SupportedFormats = ['native', 'in_feed', 'text'];
 
-    /** Templates supported by the bundled static card renderer. */
-    public const SupportedTemplates = ['card_landscape', 'card_portrait', 'row_compact', 'bar_logo', 'rail', 'logo_grid', 'hero_cobrand'];
+    /**
+     * Templates this web client can render and negotiates in `accepts`.
+     * Catalogue templates limited to ios/android (`story_video`, `interstitial`) stay excluded.
+     */
+    public const SupportedTemplates = ['card_landscape', 'card_portrait', 'row_compact', 'bar_logo', 'rail', 'logo_grid', 'hero_cobrand', 'reward', 'promoted_content'];
+
+    /** Catalogue templates that must not be advertised by this web package. */
+    public const UnsupportedWebTemplates = ['story_video', 'interstitial'];
 
     /** @var list<string> */
     private const Disclosures = ['sponsored', 'promoted', 'presented', 'paid', 'ad'];
@@ -158,7 +175,7 @@ class PsobPsayClient
         $cached = Cache::get($this->cacheKey('manifest'));
 
         if (is_array($cached)) {
-            return $cached;
+            return $this->manifestPayload($cached) ?? [];
         }
 
         try {
@@ -173,9 +190,115 @@ class PsobPsayClient
             return [];
         }
 
-        Cache::put($this->cacheKey('manifest'), $manifest, max(1, (int) config('psobpsay.manifest_seconds', 300)));
+        $ttl = max(1, (int) config('psobpsay.manifest_seconds', 300));
+        Cache::put($this->cacheKey('manifest'), [
+            'payload' => $manifest,
+            'cached_at' => time(),
+        ], $ttl);
 
         return $manifest;
+    }
+
+    /**
+     * Shared inventory diagnosis for the check command and host dashboard.
+     *
+     * @param  list<string>  $extraSlotIds
+     * @return array<string, mixed>
+     */
+    public function diagnostics(?string $site = null, array $extraSlotIds = [], bool $strictTraffic = false): array
+    {
+        return app(SpaceDiagnostics::class)->build($site, $extraSlotIds, $strictTraffic);
+    }
+
+    /**
+     * Local status plus a remote inventory inspection. Uses the cached manifest when
+     * present; `stale` means the cache entry is older than half of `manifest_seconds`.
+     * Does not embed credentials, visitor payloads or billable event tokens.
+     *
+     * @return InspectResult
+     */
+    public function inspect(?string $site = null, array $extraSlotIds = [], bool $strictTraffic = false): array
+    {
+        $local = $this->status();
+        $meta = $this->manifestCacheMeta();
+        $diagnostics = $this->diagnostics($site, $extraSlotIds, $strictTraffic);
+        $ttl = max(1, (int) config('psobpsay.manifest_seconds', 300));
+        $age = $meta['age_seconds'];
+
+        return [
+            'local' => $local,
+            'remote' => [
+                'reachable' => (bool) ($diagnostics['reachable'] ?? false),
+                'cached' => $meta['cached'],
+                'age_seconds' => $age,
+                'stale' => $age !== null && $age > (int) floor($ttl / 2),
+                'diagnostics' => $diagnostics,
+            ],
+        ];
+    }
+
+    /**
+     * Eligible creatives for a zone key. Preview-only: never includes impression or
+     * click tokens and never holds funds.
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    public function creatives(string $zone, ?string $page = null): ?array
+    {
+        if (! $this->isConfigured() || Cache::has($this->circuitKey())) {
+            return null;
+        }
+
+        try {
+            $response = $this->http()->get('/api/v1/publisher/creatives', array_filter([
+                'zone' => $zone,
+                'page' => $page,
+            ]))->throw()->json();
+        } catch (ConnectionException $exception) {
+            return $this->openCircuit($exception, null);
+        } catch (RequestException $exception) {
+            return $this->refused($exception, null);
+        }
+
+        if (! is_array($response) || ! is_array($response['ads'] ?? null)) {
+            return null;
+        }
+
+        return array_values(array_filter(array_map(function (mixed $ad): ?array {
+            if (! is_array($ad) || ! is_string($ad['id'] ?? null)) {
+                return null;
+            }
+
+            // Never surface billable tracking URLs if a future payload adds them.
+            unset($ad['impression_url'], $ad['click_url'], $ad['impressionUrl'], $ad['clickUrl']);
+
+            return $ad;
+        }, $response['ads'])));
+    }
+
+    /**
+     * Add a workspace brand-safety block. Site-scoped keys are rejected by the server.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function block(string $type, string $value): ?array
+    {
+        if (! $this->isConfigured() || Cache::has($this->circuitKey())) {
+            return null;
+        }
+
+        try {
+            $response = $this->http()->post('/api/v1/publisher/blocks', [
+                'type' => $type,
+                'value' => $value,
+            ])->throw()->json();
+        } catch (ConnectionException $exception) {
+            return $this->openCircuit($exception, null);
+        } catch (RequestException $exception) {
+            return $this->refused($exception, null);
+        }
+
+        return is_array($response) ? $response : null;
     }
 
     /**
@@ -249,20 +372,12 @@ class PsobPsayClient
      */
     private function manifestZones(string $page): array
     {
-        $host = strtolower((string) parse_url($page, PHP_URL_HOST));
+        $site = SiteMatcher::siteForPage($this->manifest()['sites'] ?? [], $page);
         $zones = [];
 
-        foreach ((array) ($this->manifest()['sites'] ?? []) as $site) {
-            $domain = is_array($site) && is_string($site['domain'] ?? null) ? strtolower($site['domain']) : null;
-
-            if ($domain === null || ($host !== $domain && $host !== 'www.'.$domain)) {
-                continue;
-            }
-
-            foreach ((array) ($site['zones'] ?? []) as $zone) {
-                if (is_array($zone) && is_string($zone['slot_id'] ?? null) && is_string($zone['key'] ?? null) && ($zone['is_active'] ?? false) === true) {
-                    $zones[$zone['slot_id']] = $zone['key'];
-                }
+        foreach ((array) ($site['zones'] ?? []) as $zone) {
+            if (is_array($zone) && is_string($zone['slot_id'] ?? null) && is_string($zone['key'] ?? null) && ($zone['is_active'] ?? false) === true) {
+                $zones[$zone['slot_id']] = $zone['key'];
             }
         }
 
@@ -381,14 +496,7 @@ class PsobPsayClient
             return [];
         }
 
-        $host = strtolower((string) parse_url($page, PHP_URL_HOST));
-        $site = collect($this->manifest()['sites'] ?? [])->first(
-            function ($site) use ($host): bool {
-                $domain = is_array($site) && is_string($site['domain'] ?? null) ? strtolower($site['domain']) : null;
-
-                return $domain !== null && ($host === $domain || $host === 'www.'.$domain);
-            },
-        );
+        $site = SiteMatcher::siteForPage($this->manifest()['sites'] ?? [], $page);
         $schema = is_array($site['context_schema'] ?? null) ? $site['context_schema'] : [];
         $safe = [];
         $slug = '/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/';
@@ -543,6 +651,38 @@ class PsobPsayClient
     }
 
     /**
+     * @return array{cached: bool, age_seconds: int|null}
+     */
+    private function manifestCacheMeta(): array
+    {
+        $cached = Cache::get($this->cacheKey('manifest'));
+
+        if (! is_array($cached)) {
+            return ['cached' => false, 'age_seconds' => null];
+        }
+
+        if (isset($cached['payload'], $cached['cached_at']) && is_int($cached['cached_at'])) {
+            return ['cached' => true, 'age_seconds' => max(0, time() - $cached['cached_at'])];
+        }
+
+        // Legacy plain-array cache entries have no timestamp.
+        return ['cached' => isset($cached['sites']), 'age_seconds' => null];
+    }
+
+    /**
+     * @param  array<string, mixed>  $cached
+     * @return array<string, mixed>|null
+     */
+    private function manifestPayload(array $cached): ?array
+    {
+        if (isset($cached['payload']) && is_array($cached['payload']) && is_array($cached['payload']['sites'] ?? null)) {
+            return $cached['payload'];
+        }
+
+        return is_array($cached['sites'] ?? null) ? $cached : null;
+    }
+
+    /**
      * Keep only what the page renders, so a change on the ad server's side cannot leak
      * new fields into the page props. Every URL must be plain http(s): an ad whose click
      * or impression URL is anything else is dropped, and a non-http image is omitted, so
@@ -575,8 +715,11 @@ class PsobPsayClient
         $cta = $string('cta', 80);
         $brand = $string('brand', 100);
         $image = $url('image');
+        $contentRef = is_string($ad['content_ref'] ?? null) && trim($ad['content_ref']) !== ''
+            ? Str::limit(trim($ad['content_ref']), 64, '')
+            : null;
 
-        if ($headline === null && $body === null && $cta === null && $brand === null && $image === null) {
+        if ($headline === null && $body === null && $cta === null && $brand === null && $image === null && $contentRef === null) {
             return null;
         }
 
@@ -634,7 +777,43 @@ class PsobPsayClient
                 'code' => Str::limit($promo['code'], 64, ''),
                 'terms' => is_string($promo['terms'] ?? null) ? Str::limit($promo['terms'], 400, '…') : null,
             ] : null,
+            'feedbackUrl' => $this->httpUrl($ad['feedback_url'] ?? null),
+            'why' => self::why($ad['why'] ?? null),
+            'contentRef' => is_string($ad['content_ref'] ?? null) && trim($ad['content_ref']) !== ''
+                ? Str::limit(trim($ad['content_ref']), 64, '')
+                : null,
+            'contentUrl' => $this->httpUrl($ad['content_url'] ?? null),
         ];
+    }
+
+    /**
+     * @return array{advertiser: string|null, reasons: list<string>}|null
+     */
+    private static function why(mixed $why): ?array
+    {
+        if (! is_array($why)) {
+            return null;
+        }
+
+        $reasons = [];
+        foreach ((array) ($why['reasons'] ?? []) as $reason) {
+            if (is_string($reason) && trim($reason) !== '') {
+                $reasons[] = Str::limit(trim($reason), 120, '…');
+            }
+            if (count($reasons) >= 5) {
+                break;
+            }
+        }
+
+        $advertiser = is_string($why['advertiser'] ?? null) && trim($why['advertiser']) !== ''
+            ? Str::limit(trim($why['advertiser']), 100, '…')
+            : null;
+
+        if ($advertiser === null && $reasons === []) {
+            return null;
+        }
+
+        return ['advertiser' => $advertiser, 'reasons' => $reasons];
     }
 
     /**

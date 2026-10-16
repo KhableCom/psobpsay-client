@@ -3,102 +3,49 @@
 namespace Khable\PsobPsayClient\Console;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\File;
 use Khable\PsobPsayClient\PsobPsayClient;
+use Khable\PsobPsayClient\SpaceDiagnostics;
+use Khable\PsobPsayClient\Support\ReferencedSlots;
 
 class CheckSpacesCommand extends Command
 {
-    protected $signature = 'psobpsay:check {--site= : The site domain in the ad console}';
+    protected $signature = 'psobpsay:check
+        {--site= : The site domain in the ad console}
+        {--strict-traffic : Fail when a space has no requests in the last 24 hours}';
 
     protected $description = 'Check configured and referenced ad spaces against the publisher manifest';
 
-    public function handle(PsobPsayClient $psobpsay): int
+    public function handle(PsobPsayClient $psobpsay, SpaceDiagnostics $diagnostics): int
     {
         $psobpsay->forgetManifest();
-        $manifest = $psobpsay->manifest();
+        $result = $diagnostics->build(
+            $this->option('site') ?: null,
+            ReferencedSlots::scan(),
+            (bool) $this->option('strict-traffic'),
+        );
 
-        if ($manifest === []) {
-            $this->error('Cannot read the publisher manifest. Check ADS_ENABLED, ADS_BASE_URL, ADS_API_KEY and connectivity.');
+        foreach ($result['findings'] as $finding) {
+            $line = ($finding['id'] ? $finding['id'].': ' : '').$finding['message'];
+            if ($finding['severity'] === 'warning') {
+                $this->warn($line);
+            } else {
+                $this->error($line);
+            }
+        }
 
+        if (! $result['ok']) {
             return self::FAILURE;
         }
 
-        $domain = strtolower((string) ($this->option('site') ?: config('psobpsay.site') ?: parse_url((string) config('app.url'), PHP_URL_HOST)));
-        $domain = preg_replace('/\Awww\./', '', rtrim($domain, '.'));
-        $site = collect($manifest['sites'])->first(fn (array $site): bool => ($site['domain'] ?? null) === $domain);
+        $count = count($result['spaces']);
+        $warnings = count(array_filter($result['findings'], fn (array $f): bool => $f['severity'] === 'warning'));
 
-        if (! is_array($site)) {
-            $this->error('The key has no access to site '.$domain.'.');
-
-            return self::FAILURE;
+        if ($warnings > 0) {
+            $this->info("Publisher connection and {$count} ad spaces are structurally healthy ({$warnings} traffic warning(s)).");
+        } else {
+            $this->info("Publisher connection and {$count} ad spaces are healthy.");
         }
-
-        $problems = [];
-        if (($site['can_serve'] ?? false) !== true) {
-            $problems[] = 'Site cannot serve: '.($site['reason'] ?? 'site_inactive');
-        }
-
-        $zones = collect($site['zones'] ?? []);
-        $configured = (array) config('psobpsay.zones', []);
-        $spaces = (array) config('psobpsay.spaces', []);
-        $ids = array_unique([...array_keys($configured), ...array_keys($spaces), ...$this->referencedSlots()]);
-
-        foreach ($ids as $id) {
-            $key = $configured[$id] ?? null;
-            $zone = filled($key) ? $zones->firstWhere('key', $key) : $zones->firstWhere('slot_id', $id);
-
-            if (! is_array($zone)) {
-                $problems[] = $id.': zone missing or key unknown';
-
-                continue;
-            }
-            if (($zone['is_active'] ?? false) !== true) {
-                $problems[] = $id.': zone inactive';
-            }
-            $template = $zone['template'] ?? null;
-            if ($template !== null && ! in_array($template, PsobPsayClient::SupportedTemplates, true)) {
-                $problems[] = $id.': template has no bundled renderer ('.$template.')';
-            } elseif ($template === null && ! in_array($zone['format'] ?? null, ['native', 'in_feed', 'text'], true)) {
-                $problems[] = $id.': unsupported format';
-            }
-            if (isset($spaces[$id]['template']) && $template !== $spaces[$id]['template']) {
-                $problems[] = $id.': template differs from psobpsay.spaces';
-            }
-            if (($zone['requests_24h'] ?? 0) < 1) {
-                $problems[] = $id.': no requests recorded in the last 24 hours';
-            }
-        }
-
-        foreach ($problems as $problem) {
-            $this->error($problem);
-        }
-
-        if ($problems !== []) {
-            return self::FAILURE;
-        }
-
-        $this->info('Publisher connection and '.count($ids).' ad spaces are healthy.');
 
         return self::SUCCESS;
-    }
-
-    /** @return list<string> */
-    private function referencedSlots(): array
-    {
-        $slots = [];
-        foreach ([resource_path('js'), resource_path('views')] as $directory) {
-            if (! File::isDirectory($directory)) {
-                continue;
-            }
-            foreach (File::allFiles($directory) as $file) {
-                if (! in_array($file->getExtension(), ['tsx', 'jsx', 'php'], true)) {
-                    continue;
-                }
-                preg_match_all('/<(?:PsobPsaySlot|x-psobpsay::slot)\b[^>]*\bid\s*=\s*[\x22\x27]([a-zA-Z0-9_.-]+)[\x22\x27]/s', $file->getContents(), $matches);
-                $slots = [...$slots, ...$matches[1]];
-            }
-        }
-
-        return array_values(array_unique($slots));
     }
 }
