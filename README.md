@@ -165,8 +165,10 @@ Implemented: `manifest()`, `report()`, `syncSpaces()`, `creatives()`, `block()`,
 shared `SiteMatcher` + `SpaceDiagnostics`, optional admin dashboard, and distinct web
 renderers for `card_landscape`, `card_portrait`, `row_compact`, `bar_logo`, `rail`,
 `logo_grid`, `hero_cobrand`, and `reward` (React + Blade). Promo copy controls sit outside
-the billable click link. Mobile-only catalogue templates (`story_video`, `interstitial`) and
-`promoted_content` stay out of `SupportedTemplates` until their web path exists.
+the billable click link. `promoted_content` is supported with a default React card that hosts
+usually override to draw their own content from `contentRef`; Blade has no dedicated layout for
+it. Mobile-only catalogue templates (`story_video`, `interstitial`) stay out of
+`SupportedTemplates` until their web path exists.
 
 Remaining improvements:
 
