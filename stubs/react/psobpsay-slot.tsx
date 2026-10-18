@@ -46,7 +46,7 @@ export type { SpaceRenderer };
 /**
  * A templated space: `<PsobPsaySlot id="web.grid.card" template="card_landscape" ads={sponsored} />`.
  *
- * Published by khable/psobpsay-client. Draws a skeleton while the deferred prop loads, nothing
+ * Published by psobpsay/client. Draws a skeleton while the deferred prop loads, nothing
  * at all when the space went unfilled, and otherwise each ad through the renderer for its
  * template (host override or the bundled layout). Every ad gets one click destination with
  * `rel="sponsored nofollow noopener"`, a new-tab hint, and its own viewable-impression count.

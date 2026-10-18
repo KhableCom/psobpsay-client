@@ -17,7 +17,7 @@ return [
 
     'enabled' => (bool) env('ADS_ENABLED', false),
 
-    /** Origin of the ad server's serving host, e.g. https://s.khable.com. */
+    /** Origin of the ad server's serving host, e.g. https://s.psobpsay.com. */
     'base_url' => rtrim((string) env('ADS_BASE_URL', ''), '/'),
 
     /** The publisher API key issued in the ad console. Server side only. */

@@ -1,6 +1,6 @@
 <?php
 
-namespace Khable\PsobPsayClient\Support;
+namespace PsobPsay\Client\Support;
 
 /**
  * Match a request host to a publisher site domain the same way serving and page

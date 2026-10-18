@@ -1,11 +1,11 @@
 <?php
 
-namespace Khable\PsobPsayClient;
+namespace PsobPsay\Client;
 
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
-use Khable\PsobPsayClient\Console\CheckSpacesCommand;
-use Khable\PsobPsayClient\Console\SyncSpacesCommand;
+use PsobPsay\Client\Console\CheckSpacesCommand;
+use PsobPsay\Client\Console\SyncSpacesCommand;
 
 class PsobPsayClientServiceProvider extends ServiceProvider
 {
@@ -21,7 +21,7 @@ class PsobPsayClientServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'psobpsay');
-        Blade::componentNamespace('Khable\\PsobPsayClient\\View\\Components', 'psobpsay');
+        Blade::componentNamespace('PsobPsay\\Client\\View\\Components', 'psobpsay');
 
         if ($this->dashboardEnabled()) {
             $this->loadRoutesFrom(__DIR__.'/../routes/dashboard.php');

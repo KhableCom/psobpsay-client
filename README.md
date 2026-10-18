@@ -1,4 +1,4 @@
-# khable/psobpsay-client
+# psobpsay/client
 
 Server-to-server client for the psobpsay ad network, for Laravel sites
 that are publishers there. One batched call per page view, fail-empty, with a
@@ -18,7 +18,7 @@ or a live serving endpoint. Internal maintainers can find the complete publisher
 ```
 
 ```bash
-composer require khable/psobpsay-client
+composer require psobpsay/client
 php artisan vendor:publish --tag=psobpsay-config   # config/psobpsay.php
 ```
 
@@ -34,7 +34,7 @@ console shows for your site:
 
 ```dotenv
 ADS_ENABLED=true
-ADS_BASE_URL=https://s.khable.com      # the serving host, no path
+ADS_BASE_URL=https://s.psobpsay.com      # the serving host, no path
 ADS_API_KEY=pk_...                     # issued once in the console; server side only
 ADS_ZONE_FEED=zn_...
 ADS_ZONE_SIDEBAR=zn_...
@@ -44,7 +44,7 @@ ADS_COUNTRY_HEADER=CF-IPCountry        # or empty when not behind an edge; edge 
 ## Ask for the placements on a page
 
 ```php
-use Khable\PsobPsayClient\PsobPsayClient;
+use PsobPsay\Client\PsobPsayClient;
 
 public function __invoke(Request $request, PsobPsayClient $ads)
 {

@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Khable\PsobPsayClient\Http\Controllers\DashboardController;
+use PsobPsay\Client\Http\Controllers\DashboardController;
 
 /*
 |--------------------------------------------------------------------------

@@ -8,7 +8,7 @@ import type { SponsoredAd } from './types';
  * not an impression and is not sent. The same moment counts toward the campaign's daily
  * frequency cap, so a card that was never seen does not use up the visitor's allowance.
  *
- * Published by khable/psobpsay-client. Keep this file as published: it is the part of the
+ * Published by psobpsay/client. Keep this file as published: it is the part of the
  * card the ad server's billing depends on, and a diff against the package stub is the
  * check that it has not drifted.
  */

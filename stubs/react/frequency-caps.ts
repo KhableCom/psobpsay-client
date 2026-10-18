@@ -7,7 +7,7 @@ import type { SponsoredAd } from './types';
  * capped out. Nothing that identifies the visitor leaves the browser, and a visitor who
  * sends Global Privacy Control or Do Not Track is not counted at all.
  *
- * Published by khable/psobpsay-client. Keep this file as published: the storage format is
+ * Published by psobpsay/client. Keep this file as published: the storage format is
  * shared with the psobpsay tag, so a site running both counts one cap, not two.
  */
 const STORE = 'pp_freq';

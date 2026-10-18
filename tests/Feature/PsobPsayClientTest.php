@@ -5,7 +5,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
-use Khable\PsobPsayClient\PsobPsayClient;
+use PsobPsay\Client\PsobPsayClient;
 
 const PAGE = 'https://site.test/';
 

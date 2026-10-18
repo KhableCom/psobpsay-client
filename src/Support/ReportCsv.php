@@ -1,6 +1,6 @@
 <?php
 
-namespace Khable\PsobPsayClient\Support;
+namespace PsobPsay\Client\Support;
 
 /**
  * Fixed-schema CSV for publisher reports. Cells are escaped so a malicious

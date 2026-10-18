@@ -1,6 +1,6 @@
 <?php
 
-namespace Khable\PsobPsayClient\Tests;
+namespace PsobPsay\Client\Tests;
 
 abstract class DashboardTestCase extends TestCase
 {

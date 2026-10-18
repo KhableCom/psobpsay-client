@@ -1,13 +1,13 @@
 <?php
 
-namespace Khable\PsobPsayClient\Http\Controllers;
+namespace PsobPsay\Client\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Carbon;
-use Khable\PsobPsayClient\PsobPsayClient;
-use Khable\PsobPsayClient\Support\ReferencedSlots;
-use Khable\PsobPsayClient\Support\ReportCsv;
+use PsobPsay\Client\PsobPsayClient;
+use PsobPsay\Client\Support\ReferencedSlots;
+use PsobPsay\Client\Support\ReportCsv;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**

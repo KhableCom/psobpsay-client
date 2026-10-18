@@ -1,6 +1,6 @@
 <?php
 
-namespace Khable\PsobPsayClient\View\Components;
+namespace PsobPsay\Client\View\Components;
 
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;

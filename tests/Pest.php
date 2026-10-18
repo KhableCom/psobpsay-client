@@ -1,8 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
-use Khable\PsobPsayClient\Tests\DashboardTestCase;
-use Khable\PsobPsayClient\Tests\TestCase;
+use PsobPsay\Client\Tests\DashboardTestCase;
+use PsobPsay\Client\Tests\TestCase;
 
 pest()->extend(TestCase::class)
     ->beforeEach(fn () => Http::preventStrayRequests())

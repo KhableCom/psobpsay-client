@@ -1,6 +1,6 @@
 <?php
 
-namespace Khable\PsobPsayClient\Support;
+namespace PsobPsay\Client\Support;
 
 use Illuminate\Support\Facades\File;
 

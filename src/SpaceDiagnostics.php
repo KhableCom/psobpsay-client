@@ -1,9 +1,9 @@
 <?php
 
-namespace Khable\PsobPsayClient;
+namespace PsobPsay\Client;
 
 use Illuminate\Support\Collection;
-use Khable\PsobPsayClient\Support\SiteMatcher;
+use PsobPsay\Client\Support\SiteMatcher;
 
 /**
  * Shared inventory diagnosis for `psobpsay:check` and the host admin dashboard.

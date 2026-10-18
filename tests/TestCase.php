@@ -1,9 +1,9 @@
 <?php
 
-namespace Khable\PsobPsayClient\Tests;
+namespace PsobPsay\Client\Tests;
 
-use Khable\PsobPsayClient\PsobPsayClientServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
+use PsobPsay\Client\PsobPsayClientServiceProvider;
 
 abstract class TestCase extends Orchestra
 {

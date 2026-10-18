@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
-use Khable\PsobPsayClient\PsobPsayClient;
+use PsobPsay\Client\PsobPsayClient;
 
 /** @return array<string, mixed> */
 function manifestBody(): array

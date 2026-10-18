@@ -2,7 +2,7 @@ import type { SponsoredAd } from './types';
 import { useViewableImpression } from './use-viewable-impression';
 
 /**
- * A sponsored card in a list. Published by khable/psobpsay-client as a starting point:
+ * A sponsored card in a list. Published by psobpsay/client as a starting point:
  * restyle it freely to match your own cards, keep three things — the whole card is one
  * link through the ad server's click redirect with `rel="sponsored nofollow noopener"`,
  * the label is always visible so nobody mistakes it for content, and the new-tab hint

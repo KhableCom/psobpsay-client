@@ -1,5 +1,5 @@
 {
-    "name": "khable/psobpsay-client",
+    "name": "psobpsay/client",
     "description": "Server-to-server client for the psobpsay ad network: one batched serve call per page, fail-empty, with a Blade card and a React stub.",
     "type": "library",
     "license": "MIT",
@@ -23,18 +23,18 @@
     },
     "autoload": {
         "psr-4": {
-            "Khable\\PsobPsayClient\\": "src/"
+            "PsobPsay\\Client\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Khable\\PsobPsayClient\\Tests\\": "tests/"
+            "PsobPsay\\Client\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Khable\\PsobPsayClient\\PsobPsayClientServiceProvider"
+                "PsobPsay\\Client\\PsobPsayClientServiceProvider"
             ]
         }
     },

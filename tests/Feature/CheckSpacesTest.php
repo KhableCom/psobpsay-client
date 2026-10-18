@@ -2,9 +2,9 @@
 
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
-use Khable\PsobPsayClient\PsobPsayClient;
-use Khable\PsobPsayClient\SpaceDiagnostics;
-use Khable\PsobPsayClient\Support\ReferencedSlots;
+use PsobPsay\Client\PsobPsayClient;
+use PsobPsay\Client\SpaceDiagnostics;
+use PsobPsay\Client\Support\ReferencedSlots;
 
 beforeEach(function () {
     psobpsayConfigured();

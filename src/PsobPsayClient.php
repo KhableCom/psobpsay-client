@@ -1,6 +1,6 @@
 <?php
 
-namespace Khable\PsobPsayClient;
+namespace PsobPsay\Client;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
-use Khable\PsobPsayClient\Support\SiteMatcher;
+use PsobPsay\Client\Support\SiteMatcher;
 use Throwable;
 
 /**

@@ -1,6 +1,6 @@
 <?php
 
-use Khable\PsobPsayClient\Support\SiteMatcher;
+use PsobPsay\Client\Support\SiteMatcher;
 
 $sites = [
     ['domain' => 'site.test', 'context_schema' => ['city' => ['phnom-penh']], 'zones' => [['slot_id' => 'a', 'key' => 'zn_a']]],

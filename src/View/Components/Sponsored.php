@@ -1,10 +1,10 @@
 <?php
 
-namespace Khable\PsobPsayClient\View\Components;
+namespace PsobPsay\Client\View\Components;
 
 use Illuminate\Contracts\View\View;
 use Illuminate\View\Component;
-use Khable\PsobPsayClient\PsobPsayClient;
+use PsobPsay\Client\PsobPsayClient;
 
 /**
  * A sponsored card for Blade sites: `<x-psobpsay::sponsored :ad="$slots['feed'] ?? null" />`.

@@ -1,11 +1,11 @@
 <?php
 
-namespace Khable\PsobPsayClient\Console;
+namespace PsobPsay\Client\Console;
 
 use Illuminate\Console\Command;
-use Khable\PsobPsayClient\PsobPsayClient;
-use Khable\PsobPsayClient\SpaceDiagnostics;
-use Khable\PsobPsayClient\Support\ReferencedSlots;
+use PsobPsay\Client\PsobPsayClient;
+use PsobPsay\Client\SpaceDiagnostics;
+use PsobPsay\Client\Support\ReferencedSlots;
 
 class CheckSpacesCommand extends Command
 {

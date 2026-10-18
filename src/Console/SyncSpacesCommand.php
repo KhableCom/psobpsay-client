@@ -1,11 +1,11 @@
 <?php
 
-namespace Khable\PsobPsayClient\Console;
+namespace PsobPsay\Client\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
-use Khable\PsobPsayClient\PsobPsayClient;
+use PsobPsay\Client\PsobPsayClient;
 
 /**
  * Creates the spaces in `psobpsay.spaces` that the ad console does not have yet. Safe to run
