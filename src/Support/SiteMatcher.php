@@ -54,17 +54,22 @@ final class SiteMatcher
      */
     public static function siteForHost(iterable $sites, string $host): ?array
     {
+        $alias = null;
         foreach ($sites as $site) {
             if (! is_array($site) || ! is_string($site['domain'] ?? null)) {
                 continue;
             }
 
-            if (self::hostMatchesDomain($host, $site['domain'])) {
+            if (self::normalizeHost($host) === self::normalizeHost($site['domain'])) {
                 return $site;
+            }
+
+            if ($alias === null && self::hostMatchesDomain($host, $site['domain'])) {
+                $alias = $site;
             }
         }
 
-        return null;
+        return $alias;
     }
 
     /**
@@ -86,8 +91,8 @@ final class SiteMatcher
      */
     public static function siteForConfiguredDomain(iterable $sites, ?string $configured, ?string $fallbackHost = null): ?array
     {
-        $domain = self::normalizeConfiguredDomain($configured)
-            ?? self::normalizeConfiguredDomain($fallbackHost);
+        $domain = self::normalizeHost($configured)
+            ?? self::normalizeHost($fallbackHost);
 
         if ($domain === null) {
             return null;

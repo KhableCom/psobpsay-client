@@ -38,3 +38,11 @@ test('ignores malformed manifest site rows', function () {
     expect(SiteMatcher::siteForHost($sites, 'ok.test')['domain'])->toBe('ok.test')
         ->and(SiteMatcher::siteForHost($sites, 'missing.test'))->toBeNull();
 });
+
+test('prefers an explicitly registered www site over a bare-domain alias', function () {
+    $sites = [['domain' => 'site.test'], ['domain' => 'www.site.test']];
+
+    expect(SiteMatcher::siteForHost($sites, 'www.site.test')['domain'])->toBe('www.site.test')
+        ->and(SiteMatcher::siteForConfiguredDomain($sites, 'www.site.test')['domain'])->toBe('www.site.test')
+        ->and(SiteMatcher::siteForConfiguredDomain([$sites[1]], null, 'www.site.test')['domain'])->toBe('www.site.test');
+});

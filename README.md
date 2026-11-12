@@ -189,6 +189,9 @@ ADS_DASHBOARD_MIDDLEWARE=web,auth,can:viewPsobPsayDashboard
 ADS_DASHBOARD_PREFIX=admin/psobpsay
 ```
 
+`viewPsobPsayDashboard` is an example ability: the package does not define it. Define it in the
+host, for example `Gate::define('viewPsobPsayDashboard', fn ($user) => $user->is_admin);`.
+
 Publish optional Blade/Inertia stubs with `php artisan vendor:publish --tag=psobpsay-dashboard`.
 Package installation never registers the routes without both `enabled` and non-empty middleware.
 
